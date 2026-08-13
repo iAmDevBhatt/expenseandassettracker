@@ -100,12 +100,63 @@ UNIQUE(list_type, value)
 | asset_category | TEXT | from ASSET_CATEGORY config |
 | asset_holder | TEXT | from ASSET_HOLDER config |
 | asset_sub_category | TEXT | from ASSET_SUB_CATEGORY config |
+| account_number | TEXT | bank/broker account number; nullable |
 | name | TEXT | |
 | current_value | NUMERIC(15,2) | |
 | notes | TEXT | |
 | as_of_date | DATE | |
 | created_at | DATETIME | |
 | updated_at | DATETIME | |
+
+### `asset_monthly_values`
+Monthly INR amounts per asset per financial year month.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| asset_id | INTEGER FK → assets.id | CASCADE delete |
+| month_key | TEXT (3) | APR MAY JUN JUL AUG SEP OCT NOV DEC JAN FEB MAR |
+| fy_start_year | INTEGER | e.g. 2025 for FY 2025-26 |
+| amount | NUMERIC(15,2) | nullable |
+
+UNIQUE(asset_id, month_key, fy_start_year)
+
+Financial year = Apr `fy_start_year` → Mar `fy_start_year + 1`.
+
+### `protection_targets`
+4 fixed rows per user: Emergency Funds, Term Insurance, Gold, Silver.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE |
+| category | TEXT | one of the 4 fixed categories |
+| current_value | NUMERIC(15,2) | nullable |
+| target_value | NUMERIC(15,2) | nullable |
+
+UNIQUE(user_id, category). Rows are created only when the user explicitly clicks "Set up Protection Targets" — never auto-seeded on page load.
+
+### `liquid_assets`
+Single row per user (current + target values for Fixed/Savings/Cash).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | UNIQUE, CASCADE |
+| current_fixed / current_savings / current_cash | NUMERIC(15,2) | nullable |
+| target_fixed / target_savings / target_cash | NUMERIC(15,2) | nullable |
+
+### `precious_metals`
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE |
+| metal_type | TEXT | Gold / Silver / Gold Bar |
+| carat | TEXT | 24K / 22K / 18K / 14K / 9999 / n/a |
+| grams | NUMERIC(10,4) | |
+| purchase_price | NUMERIC(15,2) | |
+| amount_spent | NUMERIC(15,2) | |
+| current_value_override | NUMERIC(15,2) | manual override; if NULL, current value = live price × grams |
 
 ---
 
@@ -197,10 +248,14 @@ GET    /api/auth/me             Get current user info
 
 ### Months
 ```
-GET    /api/months              List all months (newest first)
-GET    /api/months/{year}/{m}   Get or auto-create a month record
-DELETE /api/months/{id}         Delete month + all its data (cascade)
+GET    /api/months                    List all months (newest first)
+GET    /api/months/{year}/{m}         Get or auto-create a month record (legacy — still works)
+GET    /api/months/{year}/{m}/check   Check if month exists — returns 200+record or 404; NEVER creates
+POST   /api/months/{year}/{m}         Explicitly create a month; 409 if already exists
+DELETE /api/months/{id}               Delete month + all its data (cascade)
 ```
+
+**Creation behaviour:** The UI uses `/check` to detect whether a month exists, and only calls `POST` when the user explicitly clicks "Start Month". Navigating to a new month URL no longer silently creates a DB record.
 
 ### Expenses
 ```
@@ -248,12 +303,47 @@ PUT    /api/config/{list_type}/{id}     Edit item — body: {value, sort_order}
 DELETE /api/config/{list_type}/{id}     Soft-delete (sets is_active=false)
 ```
 
+### Users
+```
+GET    /api/users               List all users
+POST   /api/users               Create user — body: {username, password}
+PUT    /api/users/{id}          Update user — body: {username?, password?}
+DELETE /api/users/{id}          Delete user (cannot delete yourself)
+```
+
 ### Assets
 ```
-GET    /api/assets              List all assets
-POST   /api/assets              Create asset
-PUT    /api/assets/{id}         Update asset
-DELETE /api/assets/{id}         Delete asset
+GET    /api/assets                              List all assets (includes monthly_values for all FYs)
+POST   /api/assets                              Create asset
+PUT    /api/assets/{id}                         Update asset metadata
+DELETE /api/assets/{id}                         Delete asset + all monthly values
+
+# Monthly values (one row per asset × month × FY)
+PUT    /api/assets/{id}/monthly/{fy_year}/{key} Upsert a monthly amount
+       Body: {amount: 50000.00}
+       fy_year: e.g. 2025 (for FY 2025-26)
+       key: APR | MAY | JUN | JUL | AUG | SEP | OCT | NOV | DEC | JAN | FEB | MAR
+DELETE /api/assets/{id}/monthly/{fy_year}/{key} Delete a monthly value
+
+# Protection & Savings Targets
+GET    /api/assets/protection-targets           List existing rows — empty array if not yet set up; NEVER auto-seeds
+POST   /api/assets/protection-targets/init      Explicitly seed the 4 fixed rows; idempotent
+PUT    /api/assets/protection-targets/{id}      Update — body: {current_value?, target_value?}
+
+# Liquid Assets
+GET    /api/assets/liquid-asset                 Get single row — 404 if not yet set up; NEVER auto-creates
+POST   /api/assets/liquid-asset/init            Explicitly create the row; idempotent
+PUT    /api/assets/liquid-asset                 Update — body: {current_fixed?, current_savings?, current_cash?, target_fixed?, target_savings?, target_cash?}
+
+# Precious Metals
+GET    /api/assets/precious-metals              List all rows
+POST   /api/assets/precious-metals              Create row
+PUT    /api/assets/precious-metals/{id}         Update row
+DELETE /api/assets/precious-metals/{id}         Delete row
+
+# Live metal price (fetched from public API, returns null on failure)
+GET    /api/assets/metal-price/{metal}          metal: gold | silver | gold_bar
+       Response: {price_per_gram: 7234.50, currency: "INR"}
 ```
 
 ---

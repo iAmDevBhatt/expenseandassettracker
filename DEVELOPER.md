@@ -152,38 +152,51 @@ SQLAlchemy ORM models. One file per entity:
 - `expense.py` — `Expense` (individual transactions)
 - `cash_flow_entry.py` — `CashFlowEntry` (editable OCF rows per month)
 - `config_item.py` — `ConfigItem` (all 8 dropdown lists in one table)
-- `asset.py` — `Asset` (future asset tracking)
+- `asset.py` — `Asset` (asset metadata; shared across FYs)
+- `asset_monthly_value.py` — `AssetMonthlyValue` (monthly INR amount per asset per FY; keyed by `asset_id + month_key + fy_start_year`)
+- `protection_target.py` — `ProtectionTarget` (4 fixed rows: Emergency Funds, Term Insurance, Gold, Silver)
+- `liquid_asset.py` — `LiquidAsset` (single row per user: current/target Fixed/Savings/Cash)
+- `precious_metal.py` — `PreciousMetal` (gold/silver holdings with live price integration)
 
 ### `schemas/`
 Pydantic models for request/response validation:
-- `auth.py` — `LoginRequest`, `LoginResponse`, `UserOut`
+- `auth.py` — `LoginRequest`, `LoginResponse`, `UserOut`, `CreateUserRequest`, `UpdateUserRequest`
 - `expense.py` — `ExpenseCreate`, `ExpenseUpdate`, `ExpenseOut`
 - `cash_flow.py` — `CashFlowEntryOut`, `CashFlowUpdate`, `CashFlowBulkItem`
 - `config_item.py` — `ConfigItemCreate`, `ConfigItemUpdate`, `ConfigItemOut`
 - `dashboard.py` — `DashboardOut`, `CategoryRow`, `FinancialSummary`
 - `month_year.py` — `MonthYearOut`
-- `asset.py` — `AssetCreate`, `AssetUpdate`, `AssetOut`
+- `asset.py` — `AssetCreate`, `AssetUpdate`, `AssetOut`, `AssetMonthlyValueOut`, `AssetMonthlyValueUpsert`
+- `protection_target.py` — `ProtectionTargetOut`, `ProtectionTargetUpdate`
+- `liquid_asset.py` — `LiquidAssetOut`, `LiquidAssetUpdate`
+- `precious_metal.py` — `PreciousMetalCreate`, `PreciousMetalUpdate`, `PreciousMetalOut`, `MetalPriceOut`
 
 ### `services/`
 All business logic lives here — no SQL in routers:
-- `auth_service.py` — validates credentials, returns JWT
-- `month_service.py` — `get_or_create_month` (auto-seeds 23 OCF rows)
+- `auth_service.py` — validates credentials, returns JWT; also `list/create/update/delete_user`
+- `month_service.py` — `get_or_create_month` (legacy), `find_month` (404 if not found, never creates), `create_month` (explicit create, 409 if already exists); all seed 23 OCF rows on creation
 - `expense_service.py` — CRUD + `amount_cc` auto-set + aggregation queries
 - `cash_flow_service.py` — OCF row reads/writes; computed rows calculated from expense sums
 - `config_service.py` — CRUD for all dropdown lists; validates `list_type`
 - `dashboard_service.py` — orchestrates all 3 dashboard sections in one call
-- `asset_service.py` — asset CRUD
+- `asset_service.py` — asset CRUD + `upsert_monthly_value(asset_id, month_key, fy_start_year, amount)` + `delete_monthly_value`
+- `protection_target_service.py` — `find` (returns existing rows, never seeds); `seed` (explicit one-time setup of 4 fixed rows); `update`
+- `liquid_asset_service.py` — `find` (returns row or None, never creates); `create` (explicit one-time setup); `update`
+- `precious_metal_service.py` — full CRUD + `fetch_metal_price(metal)` (httpx → metals.live + exchangerate-api → INR/gram; returns None on failure)
 
 ### `routers/`
 FastAPI routers. Each is a thin adapter — validates input, calls service, returns response:
 - `auth.py` — `POST /api/auth/login`, `GET /api/auth/me`
+- `users.py` — `GET/POST/PUT/DELETE /api/users/...`
 - `months.py` — `GET/DELETE /api/months/...`
 - `expenses.py` — `GET/POST /api/months/{id}/expenses`, `PUT/DELETE /api/expenses/{id}`
 - `cash_flow.py` — `GET /api/months/{id}/cashflow`, `PUT .../cashflow/{row_key}`
 - `config_items.py` — `GET/POST/PUT/DELETE /api/config/...`
 - `dashboard.py` — `GET /api/months/{id}/dashboard`
-- `assets.py` — `GET/POST/PUT/DELETE /api/assets/...`
+- `assets.py` — asset CRUD + monthly values (`PUT/DELETE /api/assets/{id}/monthly/{fy_year}/{month_key}`) + protection targets (check-or-init pattern) + liquid asset (check-or-init pattern) + precious metals + live metal price
 - `deps.py` — `get_current_user` dependency (JWT → User object)
+
+**Router ordering in `main.py`:** `expenses`, `cash_flow`, `dashboard` are registered before `months` to prevent the `/{year}/{month}` wildcard from shadowing sub-paths. Similarly, static asset sub-routes (`/protection-targets`, `/liquid-asset`, etc.) are declared before `/{asset_id}` in `assets.py`.
 
 ### `seed.py`
 One-time seed script. Creates `admin` user (password: `admin123`) and all 80+ default
@@ -202,6 +215,9 @@ Router setup. Defines `ProtectedRoute` wrapper. Routes:
 - `/expenses` → `ExpensePage` (current month)
 - `/expenses/:year/:month` → `ExpensePage` (specific month)
 - `/config` → `ConfigPage`
+- `/users` → `UserManagementPage`
+- `/assets` → `AssetPage` (current FY)
+- `/assets/:fyYear` → `AssetPage` (specific FY, e.g. `/assets/2025` = FY 2025-26)
 
 ### `src/types/index.ts`
 All TypeScript interfaces matching backend Pydantic schemas.
@@ -210,7 +226,10 @@ Single source of truth for types used across API, stores, and components.
 ### `src/api/`
 One file per API resource. Each exports typed async functions using the Axios instance.
 - `axiosInstance.ts` — base URL, auth header interceptor, 401→logout redirect
-- `authApi.ts`, `monthApi.ts`, `expenseApi.ts`, `cashFlowApi.ts`, `configApi.ts`, `dashboardApi.ts`
+- `authApi.ts`, `expenseApi.ts`, `cashFlowApi.ts`, `configApi.ts`, `dashboardApi.ts`
+- `monthApi.ts` — `listMonths`, `checkMonth` (no-create, returns null on 404), `createMonth` (explicit), `getOrCreateMonth` (legacy)
+- `userApi.ts` — `listUsers`, `createUser`, `updateUser`, `deleteUser`
+- `assetApi.ts` — all asset functions including `upsertMonthlyValue(assetId, monthKey, amount, fyStartYear)`; `listProtectionTargets` (empty array if not set up) + `initProtectionTargets` (explicit setup); `getLiquidAsset` (null if not set up) + `initLiquidAsset` (explicit setup); precious metals; live metal price
 
 ### `src/store/`
 Zustand stores for client-only state:
@@ -237,10 +256,22 @@ Zustand stores for client-only state:
 ### `src/components/config/`
 - `ConfigList.tsx` — renders one dropdown list with add/delete controls
 
+### `src/components/asset/`
+- `AssetSummaryTable.tsx` — read-only; totals grouped by sub-category for the selected FY
+- `AssetDetailsTable.tsx` — inline-editable FY grid (dropdowns + month inputs); blur-saves; uses `fyStartYear` to filter and save monthly values
+- `ProtectionTargetsTable.tsx` — 4 fixed rows (Emergency Funds, Term Insurance, Gold, Silver); blur-save
+- `LiquidAssetsTable.tsx` — single row, Current/Target groups × Fixed/Savings/Cash
+- `PreciousMetalsTable.tsx` — add/delete rows; current value = live price × grams with amber manual override
+
+### `src/utils/`
+- `financialYear.ts` — `getCurrentFY()`, `getFYForYear(startYear)`, `listKnownFYs(assets)`, month key constants
+
 ### `src/pages/`
 - `LoginPage.tsx` — login form, calls `POST /api/auth/login`
-- `ExpensePage.tsx` — month selector + all 4 sections (table + 3 dashboard tables)
+- `ExpensePage.tsx` — multi-year month navigation (‹/› arrows + month/year jump pickers spanning 60 years in each direction); uses `GET /check` to detect if month exists without creating it; shows a "Start Month" button for new months so the DB record is only created on explicit user action
 - `ConfigPage.tsx` — grid of all 8 `ConfigList` components
+- `UserManagementPage.tsx` — list users, add user form, edit modal; delete hidden for logged-in user
+- `AssetPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders all 5 asset tables. Protection Targets and Liquid Assets sections show a "Set up" placeholder with an Initialise button instead of auto-creating rows on page load
 
 ---
 
@@ -252,15 +283,27 @@ Open the app → Configuration → Expense Categories → type value → "+ Add"
 ### Add a new credit card
 Open the app → Configuration → Credit Cards → type value → "+ Add"
 
+### Start tracking a new month
+Navigate to the month using ‹/› arrows or the jump pickers on the Expenses page, then click **"Start [Month] [Year]"**. The month record and all cash flow rows are created at that point. Navigating without clicking does not create anything in the database.
+
 ### Add a new Cash Flow row
 1. Add entry to `CASH_FLOW_ROWS` in `backend/core/cash_flow_rows.py`
 2. If it contributes to "income", add its key to `INCOME_ROW_KEYS`
-3. Restart backend — new rows are seeded on the next `GET /api/months/{y}/{m}` call
+3. Restart backend — new rows are seeded when a month is created via `POST /api/months/{y}/{m}`
 
 ### Add a new config list type
 1. Add `"MY_NEW_LIST"` to `VALID_LIST_TYPES` in `backend/services/config_service.py`
 2. Add default values in `backend/seed.py` and run `python seed.py`
 3. Add `{ key: 'MY_NEW_LIST', title: '...' }` to `LIST_CONFIG` in `frontend/src/pages/ConfigPage.tsx`
+
+### Run a DB migration (SQLite, no Alembic)
+When a new column is added to an existing table, `create_all` won't add it automatically.
+Run the one-off migration script from the backend directory:
+```powershell
+cd backend
+.\.venv\Scripts\python.exe migrate_monthly_year.py
+```
+Then restart the backend. Existing migration scripts are idempotent (safe to re-run).
 
 ### Switch database to PostgreSQL
 ```bash

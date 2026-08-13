@@ -14,3 +14,6 @@ class User(Base):
 
     month_years: Mapped[list["MonthYear"]] = relationship("MonthYear", back_populates="user", cascade="all, delete-orphan")
     assets: Mapped[list["Asset"]] = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
+    protection_targets: Mapped[list["ProtectionTarget"]] = relationship("ProtectionTarget", back_populates="user", cascade="all, delete-orphan")
+    liquid_asset: Mapped[list["LiquidAsset"]] = relationship("LiquidAsset", back_populates="user", cascade="all, delete-orphan")
+    precious_metals: Mapped[list["PreciousMetal"]] = relationship("PreciousMetal", back_populates="user", cascade="all, delete-orphan")

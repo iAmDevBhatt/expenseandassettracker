@@ -25,6 +25,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
         <div className="flex items-center gap-1">
           <span className="text-white font-bold text-lg mr-4">{l('app.name')}</span>
+          {navLink('/assets', l('nav.assets'))}
           {navLink('/expenses', l('nav.expenses'))}
           {navLink('/config', l('nav.configuration'))}
           {navLink('/users', l('nav.users'))}

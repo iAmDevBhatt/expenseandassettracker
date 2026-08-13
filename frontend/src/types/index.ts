@@ -97,10 +97,55 @@ export interface Asset {
   asset_category: string | null
   asset_holder: string | null
   asset_sub_category: string | null
+  account_number: string | null
   name: string | null
   current_value: number | null
   notes: string | null
   as_of_date: string | null
   created_at: string
   updated_at: string
+}
+
+export interface AssetMonthlyValue {
+  id: number
+  asset_id: number
+  month_key: string
+  fy_start_year: number
+  amount: number | null
+}
+
+export interface AssetWithMonthly extends Asset {
+  monthly_values: AssetMonthlyValue[]
+}
+
+export interface ProtectionTarget {
+  id: number
+  category: string
+  current_value: number | null
+  target_value: number | null
+}
+
+export interface LiquidAsset {
+  id: number
+  current_fixed: number | null
+  current_savings: number | null
+  current_cash: number | null
+  target_fixed: number | null
+  target_savings: number | null
+  target_cash: number | null
+}
+
+export interface PreciousMetal {
+  id: number
+  metal_type: string | null
+  carat: string | null
+  grams: number | null
+  purchase_price: number | null
+  amount_spent: number | null
+  current_value_override: number | null
+}
+
+export interface MetalPrice {
+  price_per_gram: number | null
+  currency: string
 }

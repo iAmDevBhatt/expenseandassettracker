@@ -14,6 +14,7 @@ class Asset(Base):
     asset_category: Mapped[Optional[str]] = mapped_column(String(100))
     asset_holder: Mapped[Optional[str]] = mapped_column(String(100))
     asset_sub_category: Mapped[Optional[str]] = mapped_column(String(100))
+    account_number: Mapped[Optional[str]] = mapped_column(String(50))
     name: Mapped[Optional[str]] = mapped_column(String(200))
     current_value: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2))
     notes: Mapped[Optional[str]] = mapped_column(Text)
@@ -22,3 +23,6 @@ class Asset(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="assets")
+    monthly_values: Mapped[list["AssetMonthlyValue"]] = relationship(
+        "AssetMonthlyValue", back_populates="asset", cascade="all, delete-orphan"
+    )

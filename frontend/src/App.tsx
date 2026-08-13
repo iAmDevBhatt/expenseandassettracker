@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ExpensePage } from './pages/ExpensePage'
 import { ConfigPage } from './pages/ConfigPage'
 import { UserManagementPage } from './pages/UserManagementPage'
+import AssetPage from './pages/AssetPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -29,6 +30,8 @@ export default function App() {
           <Route path="expenses/:year/:month" element={<ExpensePage />} />
           <Route path="config" element={<ConfigPage />} />
           <Route path="users" element={<UserManagementPage />} />
+          <Route path="assets" element={<AssetPage />} />
+          <Route path="assets/:fyYear" element={<AssetPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
