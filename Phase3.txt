@@ -1,0 +1,35 @@
+Phase 3
+Again keep in mind this is for multi year support
+
+Build a Yearly budget Tab/page
+
+Create a table Name "2026-2027 Budget" this table basically presents a summarizes the expense version of each month example Start Month April 2026 to End Month March 2027, it should give users the ability to set the start Month and End Month if user chooses to select but by default it should be set as April of current year of the system and End Month as March(last day of the month) of next year 
+
+Table columns
+1. Category - This should list all the values under Expense Category (drop down) which preety much remain constant 
+2. Amount Per month - Amount input provided by the user
+3. Qty - this take value from 0 to 12 
+4. Projected expenditure  - multiply (2.Amount Per month column with 3.Oty column)
+5. Actual : This is basicaly sum of the Category mentioned in all the Expense Month where The range defined by this page start Month and End Month 
+6. Percentage - this should be a bar which how much percentage of the Projected expenditure has been used when compare to Actual column
+
+Put a another table with 2 columns 
+First column should have these values and the second column is just an Amount
+Expected Income curr Year
+Projected Expenditure
+Projected Loss due to Tax
+Projected Target Saving
+Actual Expenditure	
+Actual Loss due to tax	
+Targeted Saving	
+Actual Saving	
+
+
+Build Graph Page where basically is interactive page where user can fiddle around with the data 
+I bit blank here but i am trying to understand improtant aspects from expense tabel and asset tabel. Give me some ideas  
+
+Also have this app the capabilty to be deployed as a docker app or normal non docker app like the way it is running right now. 
+Also the docker-compose.yml file i am typically keep it outside the project folder in my sever. Eg lets say i git pull my project in /opt/blr-stack/
+so system will create /opt/blr-stack/expenseandassettracker folder now i have a master docker-compose.yml file which i keep it in /opt/blr-stack/ so when you design my docker and docker-compose.yml you take this in account
+
+At last update all the *.md files
