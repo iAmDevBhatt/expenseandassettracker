@@ -1,0 +1,301 @@
+# Developer Guide — Expense & Asset Tracker
+
+This document explains every source file, how to run the project locally, and how to extend it.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Browser (React PWA)                        │
+│  • Zustand (auth/config state)              │
+│  • TanStack Query (server state + cache)    │
+│  • Axios (HTTP with JWT interceptor)        │
+└───────────────────┬─────────────────────────┘
+                    │ HTTP/JSON
+┌───────────────────▼─────────────────────────┐
+│  FastAPI Backend (Python)                   │
+│  • Pydantic schemas (validation)            │
+│  • Services (business logic)                │
+│  • SQLAlchemy ORM                           │
+└───────────────────┬─────────────────────────┘
+                    │
+┌───────────────────▼─────────────────────────┐
+│  SQLite (default)  /  PostgreSQL (optional) │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## Prerequisites
+
+| Tool | Version |
+|---|---|
+| Python | 3.11+ |
+| Node.js | 20+ |
+| npm | 9+ |
+
+---
+
+## UI Labels (labels.properties)
+
+All user-visible text in the app is driven by a single properties file:
+
+```
+frontend/public/labels.properties
+```
+
+- Edit any value to the right of the `=` sign and reload the browser — no rebuild needed.
+- Keys must not be renamed or deleted; only values should change.
+- The file is fetched at runtime via `GET /labels.properties` and parsed by `src/hooks/useLabels.ts`.
+- The `useLabels` hook exposes an `l(key)` helper used in every component.
+- Labels are cached in memory after the first load; a hard refresh (Ctrl+Shift+R) picks up changes.
+
+---
+
+## Running Locally
+
+### Quick start (Windows)
+
+```powershell
+.\start.ps1   # starts backend + frontend in two new terminal windows
+.\stop.ps1    # stops both (kills ports 8000 and 5173)
+```
+
+### Manual start
+
+### 1. Backend
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # macOS/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Seed database (first time only)
+python seed.py
+
+# Start the server
+uvicorn main:app --reload --port 8000
+```
+
+API available at: `http://localhost:8000`
+Swagger docs: `http://localhost:8000/docs`
+
+### 2. Frontend
+
+```bash
+cd frontend
+
+npm install
+npm run dev
+```
+
+App available at: `http://localhost:5173`
+
+### Default credentials
+- Username: `admin`
+- Password: `admin123`
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./data/tracker.db` | SQLAlchemy connection string |
+| `JWT_SECRET` | (hardcoded default) | JWT signing secret — **change in production** |
+| `JWT_EXPIRY_HOURS` | `24` | Token lifetime |
+| `DEBUG` | `false` | Enable SQL echo |
+
+Set in `backend/.env` file or as OS environment variables.
+
+**Switch to PostgreSQL:**
+```bash
+export DATABASE_URL=postgresql://user:pass@localhost/trackerdb
+```
+
+---
+
+## Backend File Map
+
+### `main.py`
+FastAPI app entry point. Creates DB tables on startup, registers all routers, configures CORS.
+
+### `database.py`
+SQLAlchemy engine + `SessionLocal` factory + `Base` declarative class.
+Reads `DATABASE_URL` from settings. Passes `check_same_thread=False` for SQLite.
+
+### `core/config.py`
+Pydantic `Settings` class. Reads `.env` file. Single source of truth for all configuration values.
+
+### `core/security.py`
+Password hashing (`passlib/bcrypt`) and JWT generation/decoding (`python-jose`).
+Functions: `hash_password`, `verify_password`, `create_access_token`, `decode_token`.
+
+### `core/cash_flow_rows.py`
+The canonical definition of all 25 Operating Cash Flow rows.
+`CASH_FLOW_ROWS` dict maps `row_key → CashFlowRowDef(sort_order, label, computed)`.
+`INCOME_ROW_KEYS` lists which rows contribute to "income" in the financial summary.
+**Extend here** to add new cash flow rows — no DB migration needed.
+
+### `models/`
+SQLAlchemy ORM models. One file per entity:
+- `user.py` — `User` (auth)
+- `month_year.py` — `MonthYear` (per-month data container)
+- `expense.py` — `Expense` (individual transactions)
+- `cash_flow_entry.py` — `CashFlowEntry` (editable OCF rows per month)
+- `config_item.py` — `ConfigItem` (all 8 dropdown lists in one table)
+- `asset.py` — `Asset` (future asset tracking)
+
+### `schemas/`
+Pydantic models for request/response validation:
+- `auth.py` — `LoginRequest`, `LoginResponse`, `UserOut`
+- `expense.py` — `ExpenseCreate`, `ExpenseUpdate`, `ExpenseOut`
+- `cash_flow.py` — `CashFlowEntryOut`, `CashFlowUpdate`, `CashFlowBulkItem`
+- `config_item.py` — `ConfigItemCreate`, `ConfigItemUpdate`, `ConfigItemOut`
+- `dashboard.py` — `DashboardOut`, `CategoryRow`, `FinancialSummary`
+- `month_year.py` — `MonthYearOut`
+- `asset.py` — `AssetCreate`, `AssetUpdate`, `AssetOut`
+
+### `services/`
+All business logic lives here — no SQL in routers:
+- `auth_service.py` — validates credentials, returns JWT
+- `month_service.py` — `get_or_create_month` (auto-seeds 23 OCF rows)
+- `expense_service.py` — CRUD + `amount_cc` auto-set + aggregation queries
+- `cash_flow_service.py` — OCF row reads/writes; computed rows calculated from expense sums
+- `config_service.py` — CRUD for all dropdown lists; validates `list_type`
+- `dashboard_service.py` — orchestrates all 3 dashboard sections in one call
+- `asset_service.py` — asset CRUD
+
+### `routers/`
+FastAPI routers. Each is a thin adapter — validates input, calls service, returns response:
+- `auth.py` — `POST /api/auth/login`, `GET /api/auth/me`
+- `months.py` — `GET/DELETE /api/months/...`
+- `expenses.py` — `GET/POST /api/months/{id}/expenses`, `PUT/DELETE /api/expenses/{id}`
+- `cash_flow.py` — `GET /api/months/{id}/cashflow`, `PUT .../cashflow/{row_key}`
+- `config_items.py` — `GET/POST/PUT/DELETE /api/config/...`
+- `dashboard.py` — `GET /api/months/{id}/dashboard`
+- `assets.py` — `GET/POST/PUT/DELETE /api/assets/...`
+- `deps.py` — `get_current_user` dependency (JWT → User object)
+
+### `seed.py`
+One-time seed script. Creates `admin` user (password: `admin123`) and all 80+ default
+config items. Safe to re-run — skips existing entries.
+
+---
+
+## Frontend File Map
+
+### `src/main.tsx`
+React entry point. Wraps app in `QueryClientProvider` (TanStack Query).
+
+### `src/App.tsx`
+Router setup. Defines `ProtectedRoute` wrapper. Routes:
+- `/login` → `LoginPage`
+- `/expenses` → `ExpensePage` (current month)
+- `/expenses/:year/:month` → `ExpensePage` (specific month)
+- `/config` → `ConfigPage`
+
+### `src/types/index.ts`
+All TypeScript interfaces matching backend Pydantic schemas.
+Single source of truth for types used across API, stores, and components.
+
+### `src/api/`
+One file per API resource. Each exports typed async functions using the Axios instance.
+- `axiosInstance.ts` — base URL, auth header interceptor, 401→logout redirect
+- `authApi.ts`, `monthApi.ts`, `expenseApi.ts`, `cashFlowApi.ts`, `configApi.ts`, `dashboardApi.ts`
+
+### `src/store/`
+Zustand stores for client-only state:
+- `authStore.ts` — token + username from localStorage; `login()`, `logout()`
+- `configStore.ts` — all dropdown configs cached in memory; `fetchConfigs()`, `invalidate()`
+
+### `src/components/layout/`
+- `AppShell.tsx` — outer layout with `<Outlet />`
+- `Navbar.tsx` — top nav with links and sign-out
+
+### `src/components/common/`
+- `CurrencyCell.tsx` — formats number as ₹X,XX,XXX.XX using `Intl.NumberFormat('en-IN')`
+- `Modal.tsx` — accessible dialog (Escape to close)
+- `LoadingSpinner.tsx` — spinning indicator with label
+
+### `src/components/expense/`
+- `ExpenseTable.tsx` — table of expenses with add/edit/delete
+- `AddExpenseModal.tsx` — form modal for new expense
+- `EditExpenseModal.tsx` — form modal for editing existing expense
+- `CategorySummaryTable.tsx` — dashboard section 1 (category totals)
+- `OperatingCashFlowTable.tsx` — dashboard section 2 (25-row OCF, inline editing)
+- `FinancialSummaryTable.tsx` — dashboard section 3 (income/spent/open)
+
+### `src/components/config/`
+- `ConfigList.tsx` — renders one dropdown list with add/delete controls
+
+### `src/pages/`
+- `LoginPage.tsx` — login form, calls `POST /api/auth/login`
+- `ExpensePage.tsx` — month selector + all 4 sections (table + 3 dashboard tables)
+- `ConfigPage.tsx` — grid of all 8 `ConfigList` components
+
+---
+
+## How To
+
+### Add a new expense category
+Open the app → Configuration → Expense Categories → type value → "+ Add"
+
+### Add a new credit card
+Open the app → Configuration → Credit Cards → type value → "+ Add"
+
+### Add a new Cash Flow row
+1. Add entry to `CASH_FLOW_ROWS` in `backend/core/cash_flow_rows.py`
+2. If it contributes to "income", add its key to `INCOME_ROW_KEYS`
+3. Restart backend — new rows are seeded on the next `GET /api/months/{y}/{m}` call
+
+### Add a new config list type
+1. Add `"MY_NEW_LIST"` to `VALID_LIST_TYPES` in `backend/services/config_service.py`
+2. Add default values in `backend/seed.py` and run `python seed.py`
+3. Add `{ key: 'MY_NEW_LIST', title: '...' }` to `LIST_CONFIG` in `frontend/src/pages/ConfigPage.tsx`
+
+### Switch database to PostgreSQL
+```bash
+export DATABASE_URL=postgresql://user:pass@localhost/trackerdb
+```
+On first run, ensure the database exists. SQLAlchemy will create all tables.
+
+### Add a new page
+1. Create `frontend/src/pages/NewPage.tsx`
+2. Add route in `src/App.tsx`: `<Route path="/new" element={<NewPage />} />`
+3. Add nav link in `src/components/layout/Navbar.tsx`
+4. If it needs a backend endpoint: model → schema → service → router → register in `main.py`
+
+### Production build
+```bash
+cd frontend && npm run build    # outputs to frontend/dist/
+cd backend && uvicorn main:app --host 0.0.0.0 --port 8000
+```
+Serve `frontend/dist/` as static files (nginx, Caddy, or Spring Boot static).
+
+---
+
+## PWA
+
+The app is a Progressive Web App (PWA):
+- **Manifest**: `frontend/public/icons/` + `vite.config.ts` manifest config
+- **Service Worker**: auto-generated by `vite-plugin-pwa` on `npm run build`
+- **Caching strategy**: NetworkFirst for `/api/**` (fresh data + offline fallback)
+- **Install**: Chrome/Edge will show "Install app" prompt after first visit
+
+---
+
+## Security Notes
+
+1. Change `JWT_SECRET` in production — the default is public
+2. Change the default `admin` password after first login (add a `/api/auth/change-password` endpoint)
+3. In production, restrict CORS origins in `backend/main.py` to your actual frontend domain
+4. Use HTTPS in production — JWT tokens in localStorage are readable by JS
