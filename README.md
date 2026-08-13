@@ -30,6 +30,8 @@ Login: `admin` / `admin123`
 - **Protection & Savings Targets** — Emergency Funds, Term Insurance, Gold, Silver; only created when user explicitly clicks "Set up"
 - **Liquid Assets** — current/target Fixed, Savings, Cash; only created when user explicitly clicks "Set up"
 - **Precious Metals** — live gold/silver prices (INR/gram) with manual override
+- **Budget** — yearly budget planner at `/budget`; set per-category Amount/Month × Qty to project expenditure; compare Projected vs Actual with colour-coded progress bars; configurable date range; budget summary with income, tax, and saving targets
+- **Graphs** — interactive analytics at `/graphs`; stacked bar (monthly spend by category), donut (category breakdown), line chart (income vs spending vs investment), grouped bar (projected vs actual by category), area chart (asset value growth)
 - **User Management** — add/edit/delete users at `/users`
 - **Configuration** — runtime-editable dropdown lists at `/config`
 - **Labels** — all UI text in `frontend/public/labels.properties` (edit and reload to change)
@@ -61,6 +63,8 @@ expenseandassettracker/
 │       └── types/           TypeScript interfaces
 ├── start.ps1
 ├── stop.ps1
+├── Dockerfile               Multi-stage Docker build (frontend → FastAPI static serving)
+├── docker-compose.yml       For production deployment (see Docker Deployment below)
 ├── AI_GUIDE.md              Full API + DB reference for AI/developers
 └── README.md
 ```
@@ -76,3 +80,30 @@ Default: `backend/data/tracker.db` (SQLite).
 Switch to PostgreSQL: set `DATABASE_URL=postgresql://user:pass@host/db` before starting the backend.
 
 See `AI_GUIDE.md` for the full table catalog, API reference, and computed field rules.
+
+## Docker Deployment
+
+The project ships with a multi-stage `Dockerfile` that builds the React frontend and serves it via FastAPI in a single container.
+
+### Quick test (single container)
+
+```bash
+docker build -t expenseandassettracker .
+docker run -p 8000:8000 -v tracker_data:/app/data expenseandassettracker
+```
+
+Open `http://localhost:8000` — the full app is served from one port.
+
+### Production (docker-compose)
+
+The `docker-compose.yml` in the repo is designed to be used from the **parent directory** of the git clone. For example, if the project lives at `/opt/blr-stack/expenseandassettracker/`:
+
+```bash
+# Copy docker-compose.yml one level up
+cp docker-compose.yml /opt/blr-stack/docker-compose.yml
+
+# Then from /opt/blr-stack/
+docker-compose up -d
+```
+
+The build context in `docker-compose.yml` is set to `./expenseandassettracker`, which resolves correctly when the file is in the parent directory. Edit `JWT_SECRET` in the compose file before deploying to production.

@@ -405,3 +405,94 @@ To add a new feature:
 2. **New config list** → add `list_type` to `VALID_LIST_TYPES` in `backend/services/config_service.py` and seed defaults in `backend/seed.py`
 3. **New cash flow row** → add entry to `CASH_FLOW_ROWS` in `backend/core/cash_flow_rows.py`; it auto-appears in the OCF table
 4. **New frontend page** → add component in `frontend/src/pages/`, register route in `frontend/src/App.tsx`, add nav link in `frontend/src/components/layout/Navbar.tsx`
+
+---
+
+## 12. Budget Tables (Phase 3)
+
+### `budget_entries`
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE delete |
+| fy_start_year | INTEGER | e.g. 2025 for FY 2025-26 |
+| category | TEXT(200) | matches EXPENSE_CATEGORY config value |
+| amount_per_month | NUMERIC(15,2) | user-set monthly budget per category |
+| qty | INTEGER | 0–12 (number of months this budget applies) |
+| created_at | DATETIME | |
+| updated_at | DATETIME | |
+
+UNIQUE(user_id, fy_start_year, category). The `category` field is free-text matching the EXPENSE_CATEGORY config values — it is NOT a FK so renames in config do not cascade.
+
+### `budget_summaries`
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE delete |
+| fy_start_year | INTEGER | |
+| expected_income | NUMERIC(15,2) | nullable |
+| projected_loss_tax | NUMERIC(15,2) | nullable |
+| projected_target_saving | NUMERIC(15,2) | nullable |
+| targeted_saving | NUMERIC(15,2) | nullable |
+| actual_loss_tax | NUMERIC(15,2) | nullable |
+| created_at | DATETIME | |
+| updated_at | DATETIME | |
+
+UNIQUE(user_id, fy_start_year). Three summary table rows are always computed (Projected Expenditure, Actual Expenditure, Actual Saving) and never stored.
+
+### Budget API Endpoints
+```
+GET  /api/budget/{fy_start_year}/entries
+     → List all budget entries for the user+FY; empty array if none
+
+PUT  /api/budget/{fy_start_year}/entries
+     Body: {fy_start_year: int, entries: [{category, amount_per_month, qty}, ...]}
+     → Bulk upsert (insert or update) all entries in one transaction
+
+GET  /api/budget/{fy_start_year}/actuals
+     Query: start_year, start_month, end_year, end_month
+     → Cross-range expense sums per category; joins month_years → expenses
+     Response: {actuals: [{category, actual}], total_actual}
+
+GET  /api/budget/{fy_start_year}/monthly-breakdown
+     → Per-month category sums for Apr fyYear → Mar fyYear+1
+     Response: [{year, month, categories: {category: amount}}, ...]
+
+GET  /api/budget/{fy_start_year}/monthly-summary
+     → Per-month income/spending/investment for the full FY
+     Response: [{year, month, income, spending, investment}, ...]
+
+GET  /api/budget/{fy_start_year}/summary
+     → Get (or auto-create) the budget summary row for this FY
+
+PUT  /api/budget/{fy_start_year}/summary
+     Body: {expected_income?, projected_loss_tax?, projected_target_saving?, targeted_saving?, actual_loss_tax?}
+     → Update the summary row
+```
+
+### Cross-range actuals query (SQLAlchemy)
+```python
+db.query(Expense.category, func.sum(Expense.amount))
+  .join(MonthYear, Expense.month_year_id == MonthYear.id)
+  .filter(
+      MonthYear.user_id == user.id,
+      or_(MonthYear.year > start_year,
+          and_(MonthYear.year == start_year, MonthYear.month >= start_month)),
+      or_(MonthYear.year < end_year,
+          and_(MonthYear.year == end_year, MonthYear.month <= end_month)),
+  )
+  .group_by(Expense.category).all()
+```
+
+---
+
+## 13. Docker / SERVE_STATIC
+
+In Docker mode, FastAPI also serves the compiled React SPA. This is activated by the `SERVE_STATIC=true` environment variable. When set, `backend/main.py` (at the very bottom, after all routers are registered) mounts `frontend/dist/assets/` as a static directory and adds a catch-all GET route that returns `index.html` for all non-API paths.
+
+```
+SERVE_STATIC=true   → FastAPI serves frontend/dist/ (Docker production)
+SERVE_STATIC=false  → No static serving (default; dev mode uses Vite)
+```
+
+The Dockerfile uses a multi-stage build: Node 20 Alpine builds the frontend, then Python 3.11 slim installs the backend and runs `seed.py + uvicorn`. The SQLite database is persisted via a Docker volume mounted at `/app/data/`.

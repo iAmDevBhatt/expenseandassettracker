@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Expense & Asset Tracker — docker-compose
+#
+# PRODUCTION USAGE (recommended):
+#   Copy or symlink this file one directory above the git clone so that
+#   the build context path is correct.  For example, if the repo lives at:
+#
+#       /opt/blr-stack/expenseandassettracker/
+#
+#   Place this file at:
+#
+#       /opt/blr-stack/docker-compose.yml
+#
+#   Then run:  docker-compose up -d
+#
+# LOCAL (same-directory) USAGE:
+#   You can also run it from inside the project folder — just change
+#   the context below from ./expenseandassettracker to . (a single dot).
+# ─────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+  tracker:
+    build:
+      context: ./expenseandassettracker   # path to the git-cloned project directory
+      dockerfile: Dockerfile
+    image: expenseandassettracker:latest
+    container_name: expense-tracker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Named volume keeps the SQLite DB alive across container re-builds
+      - tracker_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/tracker.db
+      # IMPORTANT: change JWT_SECRET before deploying to production
+      - JWT_SECRET=change-me-in-production-use-a-long-random-string
+      - JWT_EXPIRY_HOURS=24
+      - SERVE_STATIC=true
+      - PORT=8000
+
+volumes:
+  tracker_data:
+    driver: local

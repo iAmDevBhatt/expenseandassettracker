@@ -149,3 +149,51 @@ export interface MetalPrice {
   price_per_gram: number | null
   currency: string
 }
+
+export interface BudgetEntry {
+  id: number
+  fy_start_year: number
+  category: string
+  amount_per_month: number
+  qty: number
+}
+
+export interface BudgetEntryUpsert {
+  category: string
+  amount_per_month: number
+  qty: number
+}
+
+export interface CategoryActual {
+  category: string
+  actual: number
+}
+
+export interface ActualsResponse {
+  actuals: CategoryActual[]
+  total_actual: number
+}
+
+export interface MonthBreakdownItem {
+  year: number
+  month: number
+  categories: Record<string, number>
+}
+
+export interface MonthlySummaryItem {
+  year: number
+  month: number
+  income: number
+  spending: number
+  investment: number
+}
+
+export interface BudgetSummary {
+  id: number
+  fy_start_year: number
+  expected_income: number | null
+  projected_loss_tax: number | null
+  projected_target_saving: number | null
+  targeted_saving: number | null
+  actual_loss_tax: number | null
+}

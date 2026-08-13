@@ -140,7 +140,63 @@ Alternatively, copy `backend/.env.example` to `backend/.env` and edit the `DATAB
 
 ---
 
-## Production Build
+## Option C — Docker (single container, production)
+
+### Prerequisites
+- Docker (and optionally Docker Compose) installed on the target machine.
+
+### Quick test (local)
+
+```bash
+# From the project root
+docker build -t expenseandassettracker .
+docker run -p 8000:8000 -v tracker_data:/app/data expenseandassettracker
+```
+
+Open `http://localhost:8000` — the full app is served from a single container.
+
+### Production deployment (docker-compose)
+
+The recommended production layout places `docker-compose.yml` one level above the git clone:
+
+```
+/opt/blr-stack/
+├── docker-compose.yml          ← copy from the repo (or keep here after git pull)
+└── expenseandassettracker/     ← git clone lives here
+```
+
+Steps:
+
+```bash
+# Clone the repo
+cd /opt/blr-stack
+git clone <repo-url> expenseandassettracker
+
+# Copy docker-compose.yml one level up
+cp expenseandassettracker/docker-compose.yml .
+
+# Edit JWT_SECRET before deploying (required for production security)
+nano docker-compose.yml
+
+# Start
+docker-compose up -d
+```
+
+The app will be available at `http://<server-ip>:8000`.
+
+To update after a `git pull`:
+
+```bash
+cd /opt/blr-stack
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+The SQLite database is stored in a named Docker volume (`tracker_data`) and survives container rebuilds.
+
+---
+
+## Production Build (non-Docker)
 
 To build the frontend for production:
 

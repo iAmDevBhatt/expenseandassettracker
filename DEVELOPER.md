@@ -157,6 +157,8 @@ SQLAlchemy ORM models. One file per entity:
 - `protection_target.py` — `ProtectionTarget` (4 fixed rows: Emergency Funds, Term Insurance, Gold, Silver)
 - `liquid_asset.py` — `LiquidAsset` (single row per user: current/target Fixed/Savings/Cash)
 - `precious_metal.py` — `PreciousMetal` (gold/silver holdings with live price integration)
+- `budget_entry.py` — `BudgetEntry` (per-user, per-FY, per-category budget rows: `amount_per_month × qty = projected`; unique on `(user_id, fy_start_year, category)`)
+- `budget_summary.py` — `BudgetSummary` (per-user, per-FY user-entered summary values: expected income, tax loss, target saving; unique on `(user_id, fy_start_year)`)
 
 ### `schemas/`
 Pydantic models for request/response validation:
@@ -170,6 +172,7 @@ Pydantic models for request/response validation:
 - `protection_target.py` — `ProtectionTargetOut`, `ProtectionTargetUpdate`
 - `liquid_asset.py` — `LiquidAssetOut`, `LiquidAssetUpdate`
 - `precious_metal.py` — `PreciousMetalCreate`, `PreciousMetalUpdate`, `PreciousMetalOut`, `MetalPriceOut`
+- `budget.py` — `BudgetEntryUpsert`, `BudgetEntryOut`, `BudgetEntriesBulkUpsert`, `ActualsResponse`, `CategoryActual`, `MonthBreakdownItem`, `MonthlySummaryItem`, `BudgetSummaryUpsert`, `BudgetSummaryOut`
 
 ### `services/`
 All business logic lives here — no SQL in routers:
@@ -183,6 +186,7 @@ All business logic lives here — no SQL in routers:
 - `protection_target_service.py` — `find` (returns existing rows, never seeds); `seed` (explicit one-time setup of 4 fixed rows); `update`
 - `liquid_asset_service.py` — `find` (returns row or None, never creates); `create` (explicit one-time setup); `update`
 - `precious_metal_service.py` — full CRUD + `fetch_metal_price(metal)` (httpx → metals.live + exchangerate-api → INR/gram; returns None on failure)
+- `budget_service.py` — `list_entries`, `bulk_upsert_entries` (all categories in one transaction), `get_actuals_by_category` (cross-range JOIN query on month_years + expenses), `get_monthly_breakdown` (per-month category sums for Apr→Mar), `get_monthly_summary` (per-month income/spending/investment), `get_or_create_summary`, `update_summary`
 
 ### `routers/`
 FastAPI routers. Each is a thin adapter — validates input, calls service, returns response:
@@ -194,6 +198,7 @@ FastAPI routers. Each is a thin adapter — validates input, calls service, retu
 - `config_items.py` — `GET/POST/PUT/DELETE /api/config/...`
 - `dashboard.py` — `GET /api/months/{id}/dashboard`
 - `assets.py` — asset CRUD + monthly values (`PUT/DELETE /api/assets/{id}/monthly/{fy_year}/{month_key}`) + protection targets (check-or-init pattern) + liquid asset (check-or-init pattern) + precious metals + live metal price
+- `budget.py` — `GET/PUT /api/budget/{fy_start_year}/entries`, `GET /api/budget/{fy_start_year}/actuals` (query params: start/end year+month), `GET/PUT /api/budget/{fy_start_year}/summary`, `GET /api/budget/{fy_start_year}/monthly-breakdown`, `GET /api/budget/{fy_start_year}/monthly-summary`
 - `deps.py` — `get_current_user` dependency (JWT → User object)
 
 **Router ordering in `main.py`:** `expenses`, `cash_flow`, `dashboard` are registered before `months` to prevent the `/{year}/{month}` wildcard from shadowing sub-paths. Similarly, static asset sub-routes (`/protection-targets`, `/liquid-asset`, etc.) are declared before `/{asset_id}` in `assets.py`.
@@ -212,12 +217,16 @@ React entry point. Wraps app in `QueryClientProvider` (TanStack Query).
 ### `src/App.tsx`
 Router setup. Defines `ProtectedRoute` wrapper. Routes:
 - `/login` → `LoginPage`
-- `/expenses` → `ExpensePage` (current month)
-- `/expenses/:year/:month` → `ExpensePage` (specific month)
-- `/config` → `ConfigPage`
-- `/users` → `UserManagementPage`
+- `/graphs` → `GraphPage` (current FY)
+- `/graphs/:fyYear` → `GraphPage` (specific FY)
+- `/budget` → `BudgetPage` (current FY)
+- `/budget/:fyYear` → `BudgetPage` (specific FY)
 - `/assets` → `AssetPage` (current FY)
 - `/assets/:fyYear` → `AssetPage` (specific FY, e.g. `/assets/2025` = FY 2025-26)
+- `/expenses` → `ExpensePage` (current month)
+- `/expenses/:year/:month` → `ExpensePage` (specific month)
+- `/users` → `UserManagementPage`
+- `/config` → `ConfigPage`
 
 ### `src/types/index.ts`
 All TypeScript interfaces matching backend Pydantic schemas.
@@ -230,6 +239,7 @@ One file per API resource. Each exports typed async functions using the Axios in
 - `monthApi.ts` — `listMonths`, `checkMonth` (no-create, returns null on 404), `createMonth` (explicit), `getOrCreateMonth` (legacy)
 - `userApi.ts` — `listUsers`, `createUser`, `updateUser`, `deleteUser`
 - `assetApi.ts` — all asset functions including `upsertMonthlyValue(assetId, monthKey, amount, fyStartYear)`; `listProtectionTargets` (empty array if not set up) + `initProtectionTargets` (explicit setup); `getLiquidAsset` (null if not set up) + `initLiquidAsset` (explicit setup); precious metals; live metal price
+- `budgetApi.ts` — `getBudgetEntries`, `saveBudgetEntries` (bulk PUT), `getBudgetActuals` (cross-range category sums), `getBudgetSummary`, `saveBudgetSummary`, `getMonthlyBreakdown`, `getMonthlySummary`
 
 ### `src/store/`
 Zustand stores for client-only state:
@@ -238,7 +248,7 @@ Zustand stores for client-only state:
 
 ### `src/components/layout/`
 - `AppShell.tsx` — outer layout with `<Outlet />`
-- `Navbar.tsx` — top nav with links and sign-out
+- `Navbar.tsx` — top nav with links and sign-out; order: Graphs → Budget → Assets → Expenses → Users → Configuration
 
 ### `src/components/common/`
 - `CurrencyCell.tsx` — formats number as ₹X,XX,XXX.XX using `Intl.NumberFormat('en-IN')`
@@ -263,6 +273,10 @@ Zustand stores for client-only state:
 - `LiquidAssetsTable.tsx` — single row, Current/Target groups × Fixed/Savings/Cash
 - `PreciousMetalsTable.tsx` — add/delete rows; current value = live price × grams with amber manual override
 
+### `src/components/budget/`
+- `BudgetCategoryTable.tsx` — inline-editable table; one row per EXPENSE_CATEGORY; columns: Category | Amount/Month | Qty | Projected | Actual | progress bar (green <80%, amber 80-100%, red >100%); blur triggers bulk save
+- `BudgetSummaryTable.tsx` — 2-column Label/Amount table; editable rows (Expected Income, tax/saving fields) saved on blur; computed rows (Projected Expenditure, Actual Expenditure, Actual Saving) shown in grey
+
 ### `src/utils/`
 - `financialYear.ts` — `getCurrentFY()`, `getFYForYear(startYear)`, `listKnownFYs(assets)`, month key constants
 
@@ -272,6 +286,8 @@ Zustand stores for client-only state:
 - `ConfigPage.tsx` — grid of all 8 `ConfigList` components
 - `UserManagementPage.tsx` — list users, add user form, edit modal; delete hidden for logged-in user
 - `AssetPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders all 5 asset tables. Protection Targets and Liquid Assets sections show a "Set up" placeholder with an Initialise button instead of auto-creating rows on page load
+- `BudgetPage.tsx` — reads `fyYear` from URL params; default range April→March of selected FY; date range selectors re-query actuals; bulk-saves category budget entries on blur; budget summary entries save on blur
+- `GraphPage.tsx` — reads `fyYear` from URL params; 5 Recharts panels (stacked bar, donut pie, multi-line, grouped bar projected vs actual, area chart); all data from budget API endpoints + existing assets endpoint
 
 ---
 
@@ -323,6 +339,42 @@ cd frontend && npm run build    # outputs to frontend/dist/
 cd backend && uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 Serve `frontend/dist/` as static files (nginx, Caddy, or Spring Boot static).
+
+---
+
+## Environment Variables (additional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SERVE_STATIC` | `false` | Set to `true` in Docker to serve the built React SPA from FastAPI |
+
+When `SERVE_STATIC=true`, `backend/main.py` mounts `frontend/dist/assets` as a static directory and adds a catch-all route that returns `index.html` for all non-API paths. This block activates only after all API routers are registered (it is at the bottom of `main.py`) so it never shadows `/api/` routes.
+
+In local development (Vite dev server), `SERVE_STATIC` is never set, so the block is inactive. Only set this in the Docker container or when serving a production build directly from uvicorn.
+
+---
+
+## Docker
+
+The project ships with a multi-stage `Dockerfile`:
+
+1. **Stage 1 (`frontend-build`)** — `node:20-alpine` builds the Vite React app. Output is `/app/frontend/dist/`.
+2. **Stage 2 (`runtime`)** — `python:3.11-slim` installs Python deps, copies backend source and the compiled frontend, then runs `seed.py + uvicorn`.
+
+The `docker-compose.yml` in the repo root is designed to be placed one directory above the git clone:
+
+```
+/opt/blr-stack/
+├── docker-compose.yml   ← this file (copied from the repo)
+└── expenseandassettracker/  ← git clone
+```
+
+The build context in `docker-compose.yml` is `./expenseandassettracker` which resolves correctly from the parent directory. A named Docker volume (`tracker_data`) persists the SQLite database across container rebuilds.
+
+**Key env vars in Docker:**
+- `SERVE_STATIC=true` — enables FastAPI static file serving
+- `DATABASE_URL=sqlite:////app/data/tracker.db` — four slashes for absolute path inside container
+- `JWT_SECRET` — **always override** this in production
 
 ---
 

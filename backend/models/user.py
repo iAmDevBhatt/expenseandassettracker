@@ -17,3 +17,5 @@ class User(Base):
     protection_targets: Mapped[list["ProtectionTarget"]] = relationship("ProtectionTarget", back_populates="user", cascade="all, delete-orphan")
     liquid_asset: Mapped[list["LiquidAsset"]] = relationship("LiquidAsset", back_populates="user", cascade="all, delete-orphan")
     precious_metals: Mapped[list["PreciousMetal"]] = relationship("PreciousMetal", back_populates="user", cascade="all, delete-orphan")
+    budget_entries: Mapped[list["BudgetEntry"]] = relationship("BudgetEntry", back_populates="user", cascade="all, delete-orphan")
+    budget_summaries: Mapped[list["BudgetSummary"]] = relationship("BudgetSummary", back_populates="user", cascade="all, delete-orphan")

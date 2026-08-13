@@ -304,12 +304,81 @@ Run `python seed.py` from inside the `backend/` directory with the venv activate
 
 ---
 
+## Phase 9 — Docker Deployment (Alternative to Phases 4-6)
+
+Use this phase instead of Phases 4–6 if the target environment has Docker installed and you want to run the app as a single container.
+
+### Step 9.1 — Verify Docker is installed
+```
+docker --version
+```
+Expected: `Docker version 24.x.x` or later. If not found, install Docker Desktop (Windows/macOS) or Docker Engine (Linux).
+
+### Step 9.2 — Build the image (from the project root)
+```
+docker build -t expenseandassettracker .
+```
+This runs the multi-stage Dockerfile: Node 20 builds the React frontend, then Python 3.11 slim installs the backend. Expect 2–5 minutes on first build.
+
+### Step 9.3 — Run a test container
+```
+docker run -d -p 8000:8000 -v tracker_data:/app/data --name tracker-test expenseandassettracker
+```
+Wait ~5 seconds for startup, then verify:
+```
+curl http://localhost:8000/health
+```
+Expected: `{"status":"ok","app":"Expense & Asset Tracker"}`
+
+Open `http://localhost:8000` in a browser. Expected: login page.
+
+### Step 9.4 — Production deployment with docker-compose
+
+For production, place `docker-compose.yml` one level above the project directory:
+
+```
+# Assumes project was cloned to /opt/blr-stack/expenseandassettracker/
+cp docker-compose.yml /opt/blr-stack/docker-compose.yml
+cd /opt/blr-stack
+```
+
+**Before starting: edit JWT_SECRET in docker-compose.yml**
+```
+nano docker-compose.yml
+# Change: JWT_SECRET=change-me-in-production-use-a-long-random-string
+# To:     JWT_SECRET=<your-32+-char-random-string>
+```
+
+Start:
+```
+docker-compose up -d
+```
+
+Check logs:
+```
+docker-compose logs -f tracker
+```
+Expected: `INFO: Application startup complete.` within 10 seconds.
+
+### Step 9.5 — Updating after a git pull
+```
+cd /opt/blr-stack/expenseandassettracker
+git pull
+cd ..
+docker-compose build --no-cache
+docker-compose up -d
+```
+The database volume (`tracker_data`) is preserved automatically — no data is lost on rebuild.
+
+---
+
 ## Summary of URLs
 
 | Service | URL |
 |---|---|
-| Frontend app | http://localhost:5173 |
-| Backend API | http://localhost:8000 |
+| Frontend app (non-Docker) | http://localhost:5173 |
+| Backend API (non-Docker) | http://localhost:8000 |
+| Single container (Docker) | http://localhost:8000 |
 | Swagger / API docs | http://localhost:8000/docs |
 | Health check | http://localhost:8000/health |
 
