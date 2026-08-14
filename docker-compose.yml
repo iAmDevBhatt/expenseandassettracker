@@ -29,7 +29,7 @@ services:
     container_name: expense-tracker
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8006:8000"
     volumes:
       # Named volume keeps the SQLite DB alive across container re-builds
       - tracker_data:/app/data
