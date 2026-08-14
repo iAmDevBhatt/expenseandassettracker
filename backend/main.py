@@ -57,6 +57,10 @@ if os.getenv("SERVE_STATIC", "false").lower() == "true":
     if os.path.isdir(_assets_dir):
         app.mount("/assets", StaticFiles(directory=_assets_dir), name="vite-assets")
 
+    @app.get("/labels.properties", include_in_schema=False)
+    def serve_labels():
+        return _FileResponse(os.path.join(_static_dir, "labels.properties"), media_type="text/plain")
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str):
         return _FileResponse(os.path.join(_static_dir, "index.html"))
