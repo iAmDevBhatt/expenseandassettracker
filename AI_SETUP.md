@@ -25,7 +25,7 @@ ver
 ```
 python --version
 ```
-- If output is `Python 3.11.x` or higher → **skip to Phase 3**.
+- If output is `Python 3.11.x` or higher (including 3.12, 3.13, 3.14) → **skip to Phase 3**.
 - If output is `Python 3.9.x` or lower, or command not found → install Python.
 
 ### Install Python on Windows (via winget)
@@ -36,7 +36,7 @@ After install, close and reopen the terminal, then verify:
 ```
 python --version
 ```
-Expected: `Python 3.11.x`
+Expected: `Python 3.11.x` or higher
 
 ### Install Python on macOS (via Homebrew)
 ```
@@ -120,6 +120,15 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 This installs: FastAPI, Uvicorn, SQLAlchemy, Pydantic, python-jose, passlib, and all other packages listed in `requirements.txt`.
+
+> **Note:** `psycopg2-binary` (PostgreSQL driver) is commented out in `requirements.txt` and is **not installed** by default. The app uses SQLite. If you need PostgreSQL, install the driver separately after this step:
+> ```
+> pip install psycopg2-binary
+> ```
+> If that fails (no pre-built wheel for your Python version), use the psycopg3 alternative:
+> ```
+> pip install psycopg[binary]
+> ```
 
 Verify key packages installed:
 ```

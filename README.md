@@ -15,7 +15,7 @@ Login: `admin` / `admin123`
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.11+ · FastAPI · SQLAlchemy · SQLite |
+| Backend | Python 3.11+ (tested up to 3.14) · FastAPI · SQLAlchemy · SQLite |
 | Frontend | React 18 · Vite · TypeScript · Tailwind CSS |
 | Auth | JWT (python-jose) · BCrypt (passlib) |
 | State | Zustand (auth/config) · TanStack Query (server state) |
@@ -77,7 +77,8 @@ The asset page URL encodes the year: `/assets/2025` for FY 2025-26.
 ## Database
 
 Default: `backend/data/tracker.db` (SQLite).  
-Switch to PostgreSQL: set `DATABASE_URL=postgresql://user:pass@host/db` before starting the backend.
+Switch to PostgreSQL: set `DATABASE_URL=postgresql://user:pass@host/db` before starting the backend.  
+PostgreSQL also requires `psycopg2-binary` (not installed by default — see `requirements.txt` comment).
 
 See `AI_GUIDE.md` for the full table catalog, API reference, and computed field rules.
 

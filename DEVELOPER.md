@@ -32,7 +32,7 @@ This document explains every source file, how to run the project locally, and ho
 
 | Tool | Version |
 |---|---|
-| Python | 3.11+ |
+| Python | 3.11+ (tested up to 3.14) |
 | Node.js | 20+ |
 | npm | 9+ |
 
@@ -326,6 +326,15 @@ Then restart the backend. Existing migration scripts are idempotent (safe to re-
 export DATABASE_URL=postgresql://user:pass@localhost/trackerdb
 ```
 On first run, ensure the database exists. SQLAlchemy will create all tables.
+
+You must also install the PostgreSQL driver manually — it is commented out in `requirements.txt` by default (it ships no pre-built wheel for newer Python versions):
+```bash
+pip install psycopg2-binary
+```
+If that fails on your Python version, try the pure-Python alternative:
+```bash
+pip install psycopg[binary]
+```
 
 ### Add a new page
 1. Create `frontend/src/pages/NewPage.tsx`

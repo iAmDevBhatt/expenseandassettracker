@@ -4,7 +4,7 @@
 
 | Tool | Version | Download |
 |---|---|---|
-| Python | 3.11+ | https://www.python.org/downloads/ |
+| Python | 3.11+ (tested up to 3.14) | https://www.python.org/downloads/ |
 | Node.js | 20+ | https://nodejs.org/ |
 | npm | 9+ | Included with Node.js |
 
@@ -121,7 +121,15 @@ Open it in any text editor, change a value, and reload the browser — no restar
 By default the app uses SQLite (no setup needed). To use PostgreSQL instead:
 
 1. Create a PostgreSQL database named `trackerdb`
-2. Set the environment variable before starting the backend:
+2. Install the PostgreSQL driver (not included by default — see the comment in `requirements.txt`):
+
+```bash
+pip install psycopg2-binary
+# If that fails on your Python version, try:
+# pip install psycopg[binary]
+```
+
+3. Set the environment variable before starting the backend:
 
 ```bash
 # Windows (Command Prompt)
@@ -134,7 +142,7 @@ $env:DATABASE_URL="postgresql://your_user:your_pass@localhost:5432/trackerdb"
 export DATABASE_URL=postgresql://your_user:your_pass@localhost:5432/trackerdb
 ```
 
-3. Start the backend normally — SQLAlchemy will create all tables automatically on first run.
+4. Start the backend normally — SQLAlchemy will create all tables automatically on first run.
 
 Alternatively, copy `backend/.env.example` to `backend/.env` and edit the `DATABASE_URL` line.
 
