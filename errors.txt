@@ -1,47 +1,53 @@
 dj@ubuntu:/opt/blr-stack$ docker compose up -d --build exptracker
-[+] Building 27.1s (18/19)
+[+] Building 96.4s (17/18)
  => [internal] load local bake definitions                                                                                                             0.0s
  => => reading from stdin 555B                                                                                                                         0.0s
- => [internal] load build definition from Dockerfile                                                                                                   0.3s
- => => transferring dockerfile: 1.32kB                                                                                                                 0.0s
- => [internal] load metadata for docker.io/library/python:3.11-slim                                                                                    2.4s
- => [internal] load metadata for docker.io/library/node:20-alpine                                                                                      2.5s
- => [internal] load .dockerignore                                                                                                                      0.3s
+ => [internal] load build definition from Dockerfile                                                                                                   0.8s
+ => => transferring dockerfile: 1.31kB                                                                                                                 0.0s
+ => [internal] load metadata for docker.io/library/python:3.11-slim                                                                                    3.7s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                                      4.0s
+ => [internal] load .dockerignore                                                                                                                      1.2s
  => => transferring context: 2B                                                                                                                        0.0s
- => [frontend-build 1/7] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293                 0.0s
- => [internal] load build context                                                                                                                      3.1s
- => => transferring context: 1.61MB                                                                                                                    2.5s
+ => [frontend-build 1/6] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293                 0.0s
+ => [internal] load build context                                                                                                                      3.9s
+ => => transferring context: 1.61MB                                                                                                                    2.6s
  => [runtime 1/6] FROM docker.io/library/python:3.11-slim@sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1                      0.0s
  => CACHED [runtime 2/6] WORKDIR /app                                                                                                                  0.0s
  => CACHED [runtime 3/6] COPY backend/requirements.txt ./                                                                                              0.0s
  => CACHED [runtime 4/6] RUN pip install --no-cache-dir -r requirements.txt                                                                            0.0s
  => CACHED [runtime 5/6] COPY backend/ ./backend/                                                                                                      0.0s
- => CACHED [frontend-build 2/7] WORKDIR /app/frontend                                                                                                  0.0s
- => CACHED [frontend-build 3/7] COPY frontend/package*.json ./                                                                                         0.0s
- => CACHED [frontend-build 4/7] RUN npm ci                                                                                                             0.0s
- => CACHED [frontend-build 5/7] RUN chmod +x node_modules/.bin/tsc                                                                                     0.0s
- => CACHED [frontend-build 6/7] COPY frontend/ ./                                                                                                      0.0s
- => ERROR [frontend-build 7/7] RUN npx tsc && npx vite build                                                                                          18.0s
+ => CACHED [frontend-build 2/6] WORKDIR /app/frontend                                                                                                  0.0s
+ => CACHED [frontend-build 3/6] COPY frontend/package*.json ./                                                                                         0.0s
+ => CACHED [frontend-build 4/6] RUN npm ci                                                                                                             0.0s
+ => CACHED [frontend-build 5/6] COPY frontend/ ./                                                                                                      0.0s
+ => ERROR [frontend-build 6/6] RUN chmod +x node_modules/.bin/* && npm run build                                                                      78.4s
 ------
- > [frontend-build 7/7] RUN npx tsc && npx vite build:
-4.508 sh: tsc: Permission denied
+ > [frontend-build 6/6] RUN chmod +x node_modules/.bin/* && npm run build:
+36.53
+36.53 > expense-asset-tracker@1.0.0 build
+36.53 > tsc && vite build
+36.53
+61.08 src/api/axiosInstance.ts(4,24): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+61.09 src/components/config/ConfigList.tsx(15,9): error TS6133: 'queryClient' is declared but its value is never read.
 ------
 [+] up 0/1
- ⠙ Image expenseandassettracker:latest Building                                                                                                        28.9s
-Dockerfile:10
+ ⠙ Image expenseandassettracker:latest Building                                                                                                        97.2s
+Dockerfile:9
 
 --------------------
 
-   8 |
+   7 |
 
-   9 |     COPY frontend/ ./
+   8 |     COPY frontend/ ./
 
-  10 | >>> RUN npx tsc && npx vite build
+   9 | >>> RUN chmod +x node_modules/.bin/* && npm run build
 
-  11 |     # Output: /app/frontend/dist/
+  10 |     # Output: /app/frontend/dist/
 
-  12 |
+  11 |
 
 --------------------
 
-failed to solve: process "/bin/sh -c npx tsc && npx vite build" did not complete successfully: exit code: 126
+failed to solve: process "/bin/sh -c chmod +x node_modules/.bin/* && npm run build" did not complete successfully: exit code: 2
+
+dj@ubuntu:/opt/blr-stack$
