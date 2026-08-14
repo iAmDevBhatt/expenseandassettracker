@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQueryClient, useMutation } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { addConfigItem, deleteConfigItem } from '../../api/configApi'
 import { useConfigStore } from '../../store/configStore'
 import { useLabels } from '../../hooks/useLabels'
@@ -12,7 +12,6 @@ interface Props {
 }
 
 export function ConfigList({ listType, title, items }: Props) {
-  const queryClient = useQueryClient()
   const { invalidate, fetchConfigs } = useConfigStore()
   const { l } = useLabels()
   const [newValue, setNewValue] = useState('')
