@@ -1,53 +1,34 @@
 dj@ubuntu:/opt/blr-stack$ docker compose up -d --build exptracker
-[+] Building 96.4s (17/18)
+[+] Building 605.0s (20/20) FINISHED
  => [internal] load local bake definitions                                                                                                             0.0s
  => => reading from stdin 555B                                                                                                                         0.0s
- => [internal] load build definition from Dockerfile                                                                                                   0.8s
- => => transferring dockerfile: 1.31kB                                                                                                                 0.0s
- => [internal] load metadata for docker.io/library/python:3.11-slim                                                                                    3.7s
- => [internal] load metadata for docker.io/library/node:20-alpine                                                                                      4.0s
- => [internal] load .dockerignore                                                                                                                      1.2s
+ => [internal] load build definition from Dockerfile                                                                                                   1.4s
+ => => transferring dockerfile: 1.27kB                                                                                                                 0.0s
+ => [internal] load metadata for docker.io/library/python:3.11-slim                                                                                    4.1s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                                      3.5s
+ => [internal] load .dockerignore                                                                                                                      0.9s
  => => transferring context: 2B                                                                                                                        0.0s
  => [frontend-build 1/6] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293                 0.0s
- => [internal] load build context                                                                                                                      3.9s
- => => transferring context: 1.61MB                                                                                                                    2.6s
+ => [internal] load build context                                                                                                                      4.1s
+ => => transferring context: 2.09MB                                                                                                                    2.8s
  => [runtime 1/6] FROM docker.io/library/python:3.11-slim@sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1                      0.0s
  => CACHED [runtime 2/6] WORKDIR /app                                                                                                                  0.0s
  => CACHED [runtime 3/6] COPY backend/requirements.txt ./                                                                                              0.0s
  => CACHED [runtime 4/6] RUN pip install --no-cache-dir -r requirements.txt                                                                            0.0s
- => CACHED [runtime 5/6] COPY backend/ ./backend/                                                                                                      0.0s
+ => [runtime 5/6] COPY backend/ ./backend/                                                                                                            28.5s
  => CACHED [frontend-build 2/6] WORKDIR /app/frontend                                                                                                  0.0s
  => CACHED [frontend-build 3/6] COPY frontend/package*.json ./                                                                                         0.0s
  => CACHED [frontend-build 4/6] RUN npm ci                                                                                                             0.0s
- => CACHED [frontend-build 5/6] COPY frontend/ ./                                                                                                      0.0s
- => ERROR [frontend-build 6/6] RUN chmod +x node_modules/.bin/* && npm run build                                                                      78.4s
-------
- > [frontend-build 6/6] RUN chmod +x node_modules/.bin/* && npm run build:
-36.53
-36.53 > expense-asset-tracker@1.0.0 build
-36.53 > tsc && vite build
-36.53
-61.08 src/api/axiosInstance.ts(4,24): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
-61.09 src/components/config/ConfigList.tsx(15,9): error TS6133: 'queryClient' is declared but its value is never read.
-------
-[+] up 0/1
- ⠙ Image expenseandassettracker:latest Building                                                                                                        97.2s
-Dockerfile:9
-
---------------------
-
-   7 |
-
-   8 |     COPY frontend/ ./
-
-   9 | >>> RUN chmod +x node_modules/.bin/* && npm run build
-
-  10 |     # Output: /app/frontend/dist/
-
-  11 |
-
---------------------
-
-failed to solve: process "/bin/sh -c chmod +x node_modules/.bin/* && npm run build" did not complete successfully: exit code: 2
-
-dj@ubuntu:/opt/blr-stack$
+ => [frontend-build 5/6] COPY frontend/ ./                                                                                                            39.1s
+ => [frontend-build 6/6] RUN chmod +x node_modules/.bin/* && npm run build                                                                           196.1s
+ => [runtime 6/6] COPY --from=frontend-build /app/frontend/dist ./frontend/dist                                                                        8.3s
+ => exporting to image                                                                                                                               237.3s
+ => => exporting layers                                                                                                                              234.5s
+ => => writing image sha256:66e562c185d81d5f81b634bd0c7f990b149051677d15924481d1878ca6a056ae                                                           0.6s
+ => => naming to docker.io/library/expenseandassettracker:latest                                                                                       0.2s
+ => resolving provenance for metadata file                                                                                                             0.1s
+[+] up 1/2
+ ✔ Image expenseandassettracker:latest Built                                                                                                          605.7s
+ ⠏ Container expense-tracker           Starting                                                                                                        28.1s
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint expense-tracker (f0d8998d5ba9b1be338a197499f40038195d4471d02158fb2f1638975a6e1fcb): Bind for 0.0.0.0:8000 failed: port is already allocated
+dj@ubuntu:/opt/blr-stack$ client_loop: send disconnect: Connection reset
