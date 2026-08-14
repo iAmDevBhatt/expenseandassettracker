@@ -4,10 +4,9 @@ WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
 RUN npm ci
-RUN chmod +x node_modules/.bin/tsc
 
 COPY frontend/ ./
-RUN npx tsc && npx vite build
+RUN chmod +x node_modules/.bin/* && npm run build
 # Output: /app/frontend/dist/
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────
