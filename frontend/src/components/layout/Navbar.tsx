@@ -24,6 +24,7 @@ export function Navbar() {
     <nav className="bg-primary-800 shadow-md">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
         <div className="flex items-center gap-1">
+          <img src="/icons/icon-192.png" alt={l('app.logo.alt')} className="h-15 w-15 mr-4" />
           <span className="text-white font-bold text-lg mr-4">{l('app.name')}</span>
           {navLink('/graphs', l('nav.graphs'))}
           {navLink('/budget', l('nav.budget'))}
