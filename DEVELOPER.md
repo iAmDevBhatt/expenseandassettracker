@@ -151,7 +151,7 @@ SQLAlchemy ORM models. One file per entity:
 - `month_year.py` — `MonthYear` (per-month data container)
 - `expense.py` — `Expense` (individual transactions)
 - `cash_flow_entry.py` — `CashFlowEntry` (editable OCF rows per month)
-- `config_item.py` — `ConfigItem` (all 8 dropdown lists in one table)
+- `config_item.py` — `ConfigItem` (all 9 dropdown lists in one table)
 - `asset.py` — `Asset` (asset metadata; shared across FYs)
 - `asset_monthly_value.py` — `AssetMonthlyValue` (monthly INR amount per asset per FY; keyed by `asset_id + month_key + fy_start_year`)
 - `protection_target.py` — `ProtectionTarget` (4 fixed rows: Emergency Funds, Term Insurance, Gold, Silver)
@@ -159,6 +159,7 @@ SQLAlchemy ORM models. One file per entity:
 - `precious_metal.py` — `PreciousMetal` (gold/silver holdings with live price integration)
 - `budget_entry.py` — `BudgetEntry` (per-user, per-FY, per-category budget rows: `amount_per_month × qty = projected`; unique on `(user_id, fy_start_year, category)`)
 - `budget_summary.py` — `BudgetSummary` (per-user, per-FY user-entered summary values: expected income, tax loss, target saving; unique on `(user_id, fy_start_year)`)
+- `loan.py` — self-loan tracker: `LoanSettings` (1 row/user: `personal_loan_interest_pct`), `LoanAccountColumn` (shared ledger columns, unique on `(user_id, name)`), `LoanEntry` (dated row, `side` = WITHDRAWN/CREDITED, per FY), `LoanEntryAmount` (cell = entry × account, unique on `(loan_entry_id, account_name)`), `LoanGiven` (bad-debt watch, not FY-scoped)
 
 ### `schemas/`
 Pydantic models for request/response validation:
@@ -173,6 +174,7 @@ Pydantic models for request/response validation:
 - `liquid_asset.py` — `LiquidAssetOut`, `LiquidAssetUpdate`
 - `precious_metal.py` — `PreciousMetalCreate`, `PreciousMetalUpdate`, `PreciousMetalOut`, `MetalPriceOut`
 - `budget.py` — `BudgetEntryUpsert`, `BudgetEntryOut`, `BudgetEntriesBulkUpsert`, `ActualsResponse`, `CategoryActual`, `MonthBreakdownItem`, `MonthlySummaryItem`, `BudgetSummaryUpsert`, `BudgetSummaryOut`
+- `loan.py` — `LoanSettingsOut/Update`, `LoanColumnOut/Create`, `LoanEntryOut`, `LoanFYDataOut` (+ `LoanPriorOut`), `LoanEntryCreate/Update`, `LoanAmountUpsert`, `LoanGivenCreate/Update/Out`
 
 ### `services/`
 All business logic lives here — no SQL in routers:
@@ -187,6 +189,7 @@ All business logic lives here — no SQL in routers:
 - `liquid_asset_service.py` — `find` (returns row or None, never creates); `create` (explicit one-time setup); `update`
 - `precious_metal_service.py` — full CRUD + `fetch_metal_price(metal)` (httpx → metals.live + exchangerate-api → INR/gram; returns None on failure)
 - `budget_service.py` — `list_entries`, `bulk_upsert_entries` (all categories in one transaction), `get_actuals_by_category` (cross-range JOIN query on month_years + expenses), `get_monthly_breakdown` (per-month category sums for Apr→Mar), `get_monthly_summary` (per-month income/spending/investment), `get_or_create_summary`, `update_summary`
+- `loan_service.py` — `get/update_settings` (auto-creates the 1-row settings), `list/add/delete_column` (delete also purges that account's amount cells), `get_fy_data` (this FY's Withdrawn/Credited entries + `prior` = summed amounts for all earlier FYs → opening balance), `create/update/delete_entry`, `upsert_amount` (null deletes the cell), `list/create/update/delete_given`
 
 ### `routers/`
 FastAPI routers. Each is a thin adapter — validates input, calls service, returns response:
@@ -199,13 +202,20 @@ FastAPI routers. Each is a thin adapter — validates input, calls service, retu
 - `dashboard.py` — `GET /api/months/{id}/dashboard`
 - `assets.py` — asset CRUD + monthly values (`PUT/DELETE /api/assets/{id}/monthly/{fy_year}/{month_key}`) + protection targets (check-or-init pattern) + liquid asset (check-or-init pattern) + precious metals + live metal price
 - `budget.py` — `GET/PUT /api/budget/{fy_start_year}/entries`, `GET /api/budget/{fy_start_year}/actuals` (query params: start/end year+month), `GET/PUT /api/budget/{fy_start_year}/summary`, `GET /api/budget/{fy_start_year}/monthly-breakdown`, `GET /api/budget/{fy_start_year}/monthly-summary`
+- `loans.py` — `GET/PUT /api/loans/settings`, `GET/POST /api/loans/columns` + `DELETE /api/loans/columns/{id}`, `GET/POST/PUT/DELETE /api/loans/given...`, `PUT/DELETE /api/loans/entries/{id}` + `PUT /api/loans/entries/{id}/amounts/{account_name}`, `GET /api/loans/{fy_start_year}/data`, `POST /api/loans/{fy_start_year}/entries`
 - `deps.py` — `get_current_user` dependency (JWT → User object)
 
-**Router ordering in `main.py`:** `expenses`, `cash_flow`, `dashboard` are registered before `months` to prevent the `/{year}/{month}` wildcard from shadowing sub-paths. Similarly, static asset sub-routes (`/protection-targets`, `/liquid-asset`, etc.) are declared before `/{asset_id}` in `assets.py`.
+**Router ordering in `main.py`:** `expenses`, `cash_flow`, `dashboard` are registered before `months` to prevent the `/{year}/{month}` wildcard from shadowing sub-paths. Similarly, static asset sub-routes (`/protection-targets`, `/liquid-asset`, etc.) are declared before `/{asset_id}` in `assets.py`; in `loans.py` the literal `/entries/...` and `/given/...` routes are declared before `/{fy_start_year}/...`.
 
 ### `seed.py`
-One-time seed script. Creates `admin` user (password: `admin123`) and all 80+ default
-config items. Safe to re-run — skips existing entries.
+Seeds the `admin` user (password: `admin123`) and all 130+ default config items
+(across 9 `list_type`s). Idempotent — skips existing entries, safe to re-run on every deploy.
+
+### `migrate.py`
+Ordered registry of guarded, idempotent, **non-destructive** schema migrations for changes
+to *existing* tables (`create_all` only creates new tables, never alters). Runs `create_all()`
+then each `MIGRATIONS` step in one transaction. Invoked before `seed.py` in the Docker
+entrypoint; safe to run on every start. See "DB migrations" below for how to add one.
 
 ---
 
@@ -223,6 +233,8 @@ Router setup. Defines `ProtectedRoute` wrapper. Routes:
 - `/budget/:fyYear` → `BudgetPage` (specific FY)
 - `/assets` → `AssetPage` (current FY)
 - `/assets/:fyYear` → `AssetPage` (specific FY, e.g. `/assets/2025` = FY 2025-26)
+- `/loans` → `LoanPage` (current FY)
+- `/loans/:fyYear` → `LoanPage` (specific FY, e.g. `/loans/2025` = FY 2025-26)
 - `/expenses` → `ExpensePage` (current month)
 - `/expenses/:year/:month` → `ExpensePage` (specific month)
 - `/users` → `UserManagementPage`
@@ -240,6 +252,7 @@ One file per API resource. Each exports typed async functions using the Axios in
 - `userApi.ts` — `listUsers`, `createUser`, `updateUser`, `deleteUser`
 - `assetApi.ts` — all asset functions including `upsertMonthlyValue(assetId, monthKey, amount, fyStartYear)`; `listProtectionTargets` (empty array if not set up) + `initProtectionTargets` (explicit setup); `getLiquidAsset` (null if not set up) + `initLiquidAsset` (explicit setup); precious metals; live metal price
 - `budgetApi.ts` — `getBudgetEntries`, `saveBudgetEntries` (bulk PUT), `getBudgetActuals` (cross-range category sums), `getBudgetSummary`, `saveBudgetSummary`, `getMonthlyBreakdown`, `getMonthlySummary`
+- `loanApi.ts` — `getLoanSettings`/`updateLoanSettings`; `listLoanColumns`/`addLoanColumn`/`deleteLoanColumn`; `getLoanFYData`; `createLoanEntry`/`updateLoanEntry`/`deleteLoanEntry`/`upsertLoanAmount`; `listLoansGiven`/`createLoanGiven`/`updateLoanGiven`/`deleteLoanGiven`
 
 ### `src/store/`
 Zustand stores for client-only state:
@@ -248,7 +261,7 @@ Zustand stores for client-only state:
 
 ### `src/components/layout/`
 - `AppShell.tsx` — outer layout with `<Outlet />`
-- `Navbar.tsx` — top nav with links and sign-out; order: Graphs → Budget → Assets → Expenses → Users → Configuration
+- `Navbar.tsx` — top nav with links and sign-out; order: Graphs → Budget → Assets → Loans → Expenses → Users → Configuration
 
 ### `src/components/common/`
 - `CurrencyCell.tsx` — formats number as ₹X,XX,XXX.XX using `Intl.NumberFormat('en-IN')`
@@ -264,7 +277,8 @@ Zustand stores for client-only state:
 - `FinancialSummaryTable.tsx` — dashboard section 3 (income/spent/open)
 
 ### `src/components/config/`
-- `ConfigList.tsx` — renders one dropdown list with add/delete controls
+- `ConfigListModal.tsx` — opened from the Configuration index; stages edits (rename/add/remove) locally and flushes them on **Save** (per-item `PUT`/`POST`/`DELETE` calls), then refetches configs and closes. **Cancel** discards.
+- `LoanSettingsModal.tsx` — single number field for `Personal Loan Interest %` (`GET/PUT /api/loans/settings`); **Save** persists and closes
 
 ### `src/components/asset/`
 - `AssetSummaryTable.tsx` — read-only; totals grouped by sub-category for the selected FY
@@ -277,16 +291,22 @@ Zustand stores for client-only state:
 - `BudgetCategoryTable.tsx` — inline-editable table; one row per EXPENSE_CATEGORY; columns: Category | Amount/Month | Qty | Projected | Actual | progress bar (green <80%, amber 80-100%, red >100%); blur triggers bulk save
 - `BudgetSummaryTable.tsx` — 2-column Label/Amount table; editable rows (Expected Income, tax/saving fields) saved on blur; computed rows (Projected Expenditure, Actual Expenditure, Actual Saving) shown in grey
 
+### `src/components/loan/`
+- `LoanSummary.tsx` — read-only; two total cards (Total Loan Amount, Total Remaining) + "Summary by Loan Account" table (Current Loan Amount = opening carry + FY Withdrawn − FY Credited; Interest = `personal_loan_interest_pct` % of that)
+- `LoansGivenTable.tsx` — inline add/edit/delete table for money lent to others; computed Outstanding = Loan Amount − Loan Paid Amount, with column totals
+- `LoanLedgerTables.tsx` — Withdrawn + Credited tables side by side (`flex-col xl:flex-row`, each with its own `overflow-x-auto`); shared account columns added via a `LOAN_ACCOUNT` config-backed `<select>` / removed via the ✕ in either header; Withdrawn shows an "Opening (carried forward)" row from `data.prior`; date + amount cells blur-save via `updateLoanEntry` / `upsertLoanAmount`
+
 ### `src/utils/`
 - `financialYear.ts` — `getCurrentFY()`, `getFYForYear(startYear)`, `listKnownFYs(assets)`, month key constants
 
 ### `src/pages/`
 - `LoginPage.tsx` — login form, calls `POST /api/auth/login`
 - `ExpensePage.tsx` — multi-year month navigation (‹/› arrows + month/year jump pickers spanning 60 years in each direction); uses `GET /check` to detect if month exists without creating it; shows a "Start Month" button for new months so the DB record is only created on explicit user action
-- `ConfigPage.tsx` — grid of all 8 `ConfigList` components
+- `ConfigPage.tsx` — compact index: one tappable row per `list_type` (with item count) plus a "Loan Settings" row; a row opens `ConfigListModal` / `LoanSettingsModal`, edits are saved from the modal, then it returns to the index
 - `UserManagementPage.tsx` — list users, add user form, edit modal; delete hidden for logged-in user
 - `AssetPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders all 5 asset tables. Protection Targets and Liquid Assets sections show a "Set up" placeholder with an Initialise button instead of auto-creating rows on page load
 - `BudgetPage.tsx` — reads `fyYear` from URL params; default range April→March of selected FY; date range selectors re-query actuals; bulk-saves category budget entries on blur; budget summary entries save on blur
+- `LoanPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders `LoanSummary` (totals + per-account current loan & monthly interest), `LoansGivenTable` (bad-debt watch, inline add/edit/delete), and `LoanLedgerTables` (Withdrawn + Credited side by side, shared account columns added/removed from a config-backed picker, "Opening (carried forward)" row from prior FYs, cells save on blur). Rows/cells are only persisted when the user adds them / types a value
 - `GraphPage.tsx` — reads `fyYear` from URL params; 5 Recharts panels (stacked bar, donut pie, multi-line, grouped bar projected vs actual, area chart); all data from budget API endpoints + existing assets endpoint
 
 ---
@@ -310,16 +330,31 @@ Navigate to the month using ‹/› arrows or the jump pickers on the Expenses p
 ### Add a new config list type
 1. Add `"MY_NEW_LIST"` to `VALID_LIST_TYPES` in `backend/services/config_service.py`
 2. Add default values in `backend/seed.py` and run `python seed.py`
-3. Add `{ key: 'MY_NEW_LIST', title: '...' }` to `LIST_CONFIG` in `frontend/src/pages/ConfigPage.tsx`
+3. Add `{ key: 'MY_NEW_LIST', labelKey: 'configpage.list.mynewlist' }` to `LIST_CONFIG` in `frontend/src/pages/ConfigPage.tsx` (and the label in `labels.properties`) — it then appears as a row in the Configuration index and reuses `ConfigListModal`
 
-### Run a DB migration (SQLite, no Alembic)
-When a new column is added to an existing table, `create_all` won't add it automatically.
-Run the one-off migration script from the backend directory:
+### DB migrations (`backend/migrate.py`, no Alembic)
+`Base.metadata.create_all()` only ever **creates missing tables** — it never adds a
+column to an existing table, never alters/renames, and never drops anything. So a
+brand-new model needs no migration, but changing an existing table does.
+
+`backend/migrate.py` is a small ordered registry of guarded, **idempotent, non-destructive**
+steps. It runs `create_all()` first (new tables), then applies each step inside one
+transaction. The Docker entrypoint runs it on every start:
+```
+python migrate.py && python seed.py && uvicorn main:app ...
+```
+Run it manually the same way:
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe migrate_monthly_year.py
+.\.venv\Scripts\python.exe migrate.py
 ```
-Then restart the backend. Existing migration scripts are idempotent (safe to re-run).
+
+**To add a migration** when you touch an existing table: write a guarded function
+(check the schema via the `_columns` / `_tables` / `_indexes` helpers, no-op if already
+applied, otherwise `ALTER TABLE … ADD COLUMN …` / backfill) and append it to
+`MIGRATIONS` with the next `NNNN_` prefix. Rules: additive only — never `DROP`/rename a
+column in the same release that stops using it; do that a release later. Always back up
+the SQLite file before deploying a migration.
 
 ### Switch database to PostgreSQL
 ```bash
@@ -368,7 +403,7 @@ In local development (Vite dev server), `SERVE_STATIC` is never set, so the bloc
 The project ships with a multi-stage `Dockerfile`:
 
 1. **Stage 1 (`frontend-build`)** — `node:20-alpine` builds the Vite React app. Output is `/app/frontend/dist/`.
-2. **Stage 2 (`runtime`)** — `python:3.11-slim` installs Python deps, copies backend source and the compiled frontend, then runs `seed.py + uvicorn`.
+2. **Stage 2 (`runtime`)** — `python:3.11-slim` installs Python deps, copies backend source and the compiled frontend, then on every start runs `migrate.py` (idempotent non-destructive schema migrations) → `seed.py` (idempotent defaults) → `uvicorn`. The SQLite DB lives on the `tracker_data` named volume (`/app/data`) and survives image rebuilds; only `docker-compose down -v` deletes it.
 
 The `docker-compose.yml` in the repo root is designed to be placed one directory above the git clone:
 

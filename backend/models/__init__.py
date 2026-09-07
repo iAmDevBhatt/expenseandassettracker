@@ -10,9 +10,17 @@ from models.liquid_asset import LiquidAsset
 from models.precious_metal import PreciousMetal
 from models.budget_entry import BudgetEntry
 from models.budget_summary import BudgetSummary
+from models.loan import (
+    LoanSettings,
+    LoanAccountColumn,
+    LoanEntry,
+    LoanEntryAmount,
+    LoanGiven,
+)
 
 __all__ = [
     "User", "MonthYear", "Expense", "CashFlowEntry", "ConfigItem",
     "Asset", "AssetMonthlyValue", "ProtectionTarget", "LiquidAsset", "PreciousMetal",
     "BudgetEntry", "BudgetSummary",
+    "LoanSettings", "LoanAccountColumn", "LoanEntry", "LoanEntryAmount", "LoanGiven",
 ]

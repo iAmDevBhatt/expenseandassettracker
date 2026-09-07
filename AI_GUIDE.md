@@ -158,6 +158,71 @@ Single row per user (current + target values for Fixed/Savings/Cash).
 | amount_spent | NUMERIC(15,2) | |
 | current_value_override | NUMERIC(15,2) | manual override; if NULL, current value = live price × grams |
 
+### `loan_settings`
+Single row per user. Backs the "Personal Loan Interest %" field on the Configuration page.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | UNIQUE, CASCADE |
+| personal_loan_interest_pct | NUMERIC(8,4) | nullable; monthly % charged on outstanding self-loans |
+| created_at / updated_at | DATETIME | |
+
+### `loan_account_columns`
+The loan-account columns shared by the Withdrawn and Credited ledger tables. Global per user
+(not per FY) so a balance carries across years. `name` mirrors a `LOAN_ACCOUNT` config value but
+is stored as free text — config renames do not cascade.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE |
+| name | TEXT(200) | |
+| sort_order | INTEGER | |
+
+UNIQUE(user_id, name)
+
+### `loan_entries`
+One dated row in the Withdrawn or Credited table for one financial year.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE |
+| fy_start_year | INTEGER | e.g. 2025 for FY 2025-26 |
+| side | TEXT(10) | `WITHDRAWN` or `CREDITED` |
+| entry_date | DATE | nullable |
+| sort_order | INTEGER | |
+| created_at / updated_at | DATETIME | |
+
+### `loan_entry_amounts`
+One amount cell = (loan entry row) × (loan account column).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| loan_entry_id | INTEGER FK → loan_entries.id | CASCADE |
+| account_name | TEXT(200) | matches a `loan_account_columns.name` |
+| amount | NUMERIC(15,2) | nullable |
+
+UNIQUE(loan_entry_id, account_name)
+
+### `loans_given`
+Money lent to other people — the "bad debt" awareness tracker. Not FY-scoped.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| user_id | INTEGER FK → users.id | CASCADE |
+| given_date | DATE | nullable |
+| person_name | TEXT(200) | nullable |
+| payment_method | TEXT(100) | nullable (free text) |
+| loan_amount | NUMERIC(15,2) | nullable |
+| cleared_date | DATE | nullable |
+| paid_amount | NUMERIC(15,2) | nullable |
+| notes | TEXT | nullable |
+| created_at / updated_at | DATETIME | |
+
 ---
 
 ## 4. Row Key Reference (cash_flow_entries)
@@ -204,6 +269,7 @@ Single row per user (current + target values for Fixed/Savings/Cash).
 | ASSET_HOLDER | Bank/broker holding an asset |
 | ASSET_SUB_CATEGORY | Asset instrument type |
 | IGNORE_CATEGORY | Self-loan adjustments (excluded from spending calc) |
+| LOAN_ACCOUNT | Savings accounts you take self-loans from (Loan page ledger columns) |
 
 ---
 
@@ -296,7 +362,7 @@ Response:
 
 ### Config
 ```
-GET    /api/config                      All 8 lists as {list_type: [items]}
+GET    /api/config                      All 9 lists as {list_type: [items]}
 GET    /api/config/{list_type}          One list
 POST   /api/config/{list_type}          Add item — body: {value: "New Item"}
 PUT    /api/config/{list_type}/{id}     Edit item — body: {value, sort_order}
@@ -344,6 +410,49 @@ DELETE /api/assets/precious-metals/{id}         Delete row
 # Live metal price (fetched from public API, returns null on failure)
 GET    /api/assets/metal-price/{metal}          metal: gold | silver | gold_bar
        Response: {price_per_gram: 7234.50, currency: "INR"}
+```
+
+### Loans (self-loan tracker)
+```
+# Settings — one row per user; auto-created on first GET
+GET    /api/loans/settings                      → {personal_loan_interest_pct}
+PUT    /api/loans/settings                       Body: {personal_loan_interest_pct: 1.5 | null}
+
+# Ledger account columns (shared by the Withdrawn & Credited tables; global per user)
+GET    /api/loans/columns                        → [{id, name, sort_order}]
+POST   /api/loans/columns                        Body: {name: "SBI Savings"}   409 if duplicate
+DELETE /api/loans/columns/{column_id}            Also deletes every amount cell for that account
+
+# Per-FY ledger data
+GET    /api/loans/{fy_start_year}/data
+       → {
+           withdrawn: [{id, side, entry_date, amounts: {account_name: number|null}}],
+           credited:  [{id, side, entry_date, amounts: {...}}],
+           prior:     {account_name: {withdrawn, credited}}   # summed over all FYs < fy_start_year
+         }
+       Opening balance carried into this FY = prior[acct].withdrawn − prior[acct].credited
+
+POST   /api/loans/{fy_start_year}/entries        Body: {side: "WITHDRAWN"|"CREDITED", entry_date?}
+PUT    /api/loans/entries/{entry_id}             Body: {entry_date?}
+DELETE /api/loans/entries/{entry_id}             Cascades its amount cells
+PUT    /api/loans/entries/{entry_id}/amounts/{account_name}   Body: {amount: number | null}
+       Upsert one cell; null deletes it
+
+# Loans given to others (bad-debt watch; not FY-scoped)
+GET    /api/loans/given                          → [{id, given_date, person_name, payment_method,
+                                                    loan_amount, cleared_date, paid_amount, notes}]
+POST   /api/loans/given                          Body: any subset of the fields above
+PUT    /api/loans/given/{id}                     Partial update
+DELETE /api/loans/given/{id}
+```
+
+**Client computes** (from `/data` + settings):
+```
+perAccount.current      = prior.withdrawn + Σ(FY withdrawn) − prior.credited − Σ(FY credited)
+perAccount.interest     = personal_loan_interest_pct / 100 × perAccount.current
+Total Loan Amount       = Σ (prior.withdrawn + Σ FY withdrawn)     over all account columns
+Total Remaining Loan Amt = Σ perAccount.current
+loans_given.outstanding = loan_amount − paid_amount
 ```
 
 ---
@@ -488,11 +597,21 @@ db.query(Expense.category, func.sum(Expense.amount))
 
 ## 13. Docker / SERVE_STATIC
 
-In Docker mode, FastAPI also serves the compiled React SPA. This is activated by the `SERVE_STATIC=true` environment variable. When set, `backend/main.py` (at the very bottom, after all routers are registered) mounts `frontend/dist/assets/` as a static directory and adds a catch-all GET route that returns `index.html` for all non-API paths.
+In Docker mode, FastAPI also serves the compiled React SPA. This is activated by the `SERVE_STATIC=true` environment variable. When set, `backend/main.py` (at the very bottom, after all routers are registered) mounts `frontend/dist/assets/` at `/assets` and `frontend/dist/icons/` at `/icons` as static directories, serves `/labels.properties` and `/favicon.ico` (→ `icons/icon-192.png`) explicitly, and adds a catch-all GET route that returns `index.html` for all other non-API paths.
 
 ```
 SERVE_STATIC=true   → FastAPI serves frontend/dist/ (Docker production)
 SERVE_STATIC=false  → No static serving (default; dev mode uses Vite)
 ```
 
-The Dockerfile uses a multi-stage build: Node 20 Alpine builds the frontend, then Python 3.11 slim installs the backend and runs `seed.py + uvicorn`. The SQLite database is persisted via a Docker volume mounted at `/app/data/`.
+The Dockerfile uses a multi-stage build: Node 20 Alpine builds the frontend, then Python 3.11 slim installs the backend. On every container start the entrypoint runs `migrate.py && seed.py && uvicorn`. The SQLite database is persisted via a Docker volume mounted at `/app/data/`.
+
+### Schema upgrades (production-safe)
+
+`Base.metadata.create_all()` (in `main.py`, `seed.py`, `migrate.py`) issues `CREATE TABLE IF NOT EXISTS` only — it **never** drops, alters, or truncates. A new model/table is picked up automatically with no data loss.
+
+Changes to an **existing** table (add/rename/drop column, type change, new constraint) are *not* applied by `create_all`. Those go in `backend/migrate.py`: an ordered list of guarded, **idempotent, non-destructive** steps (`ALTER TABLE … ADD COLUMN` / backfill, skipped if already applied). It runs before `seed.py` on every start, so redeploying an image against an existing volume upgrades the schema in place without touching existing rows. Keep migrations additive (drop a retired column only in a later release) and back up the DB file before deploying one:
+```
+docker cp <container>:/app/data/tracker.db ./tracker-backup-$(date +%F).db
+```
+`docker-compose down` keeps the `tracker_data` volume; `docker-compose down -v` deletes it.

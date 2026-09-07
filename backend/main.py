@@ -5,7 +5,7 @@ from core.config import settings
 from database import engine, Base
 import models  # ensure all models are registered with Base
 
-from routers import auth, months, expenses, cash_flow, config_items, dashboard, assets, users, budget
+from routers import auth, months, expenses, cash_flow, config_items, dashboard, assets, users, budget, loans
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +35,7 @@ app.include_router(dashboard.router)
 app.include_router(config_items.router)
 app.include_router(assets.router)
 app.include_router(budget.router)
+app.include_router(loans.router)
 app.include_router(months.router)  # last: its /{year}/{month} wildcard must not shadow the above
 
 
@@ -53,13 +54,22 @@ if os.getenv("SERVE_STATIC", "false").lower() == "true":
 
     _static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
     _assets_dir = os.path.join(_static_dir, "assets")
+    _icons_dir = os.path.join(_static_dir, "icons")
 
     if os.path.isdir(_assets_dir):
         app.mount("/assets", StaticFiles(directory=_assets_dir), name="vite-assets")
 
+    if os.path.isdir(_icons_dir):
+        app.mount("/icons", StaticFiles(directory=_icons_dir), name="vite-icons")
+
     @app.get("/labels.properties", include_in_schema=False)
     def serve_labels():
         return _FileResponse(os.path.join(_static_dir, "labels.properties"), media_type="text/plain")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def serve_favicon():
+        # favicon.ico was replaced by the PNG icons; redirect old requests there
+        return _FileResponse(os.path.join(_static_dir, "icons", "icon-192.png"), media_type="image/png")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str):

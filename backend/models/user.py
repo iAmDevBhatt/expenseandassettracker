@@ -19,3 +19,7 @@ class User(Base):
     precious_metals: Mapped[list["PreciousMetal"]] = relationship("PreciousMetal", back_populates="user", cascade="all, delete-orphan")
     budget_entries: Mapped[list["BudgetEntry"]] = relationship("BudgetEntry", back_populates="user", cascade="all, delete-orphan")
     budget_summaries: Mapped[list["BudgetSummary"]] = relationship("BudgetSummary", back_populates="user", cascade="all, delete-orphan")
+    loan_settings: Mapped[list["LoanSettings"]] = relationship("LoanSettings", back_populates="user", cascade="all, delete-orphan")
+    loan_account_columns: Mapped[list["LoanAccountColumn"]] = relationship("LoanAccountColumn", back_populates="user", cascade="all, delete-orphan")
+    loan_entries: Mapped[list["LoanEntry"]] = relationship("LoanEntry", back_populates="user", cascade="all, delete-orphan")
+    loans_given: Mapped[list["LoanGiven"]] = relationship("LoanGiven", back_populates="user", cascade="all, delete-orphan")

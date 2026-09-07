@@ -6,6 +6,7 @@ import { ExpensePage } from './pages/ExpensePage'
 import { ConfigPage } from './pages/ConfigPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import AssetPage from './pages/AssetPage'
+import LoanPage from './pages/LoanPage'
 import BudgetPage from './pages/BudgetPage'
 import GraphPage from './pages/GraphPage'
 
@@ -34,6 +35,8 @@ export default function App() {
           <Route path="users" element={<UserManagementPage />} />
           <Route path="assets" element={<AssetPage />} />
           <Route path="assets/:fyYear" element={<AssetPage />} />
+          <Route path="loans" element={<LoanPage />} />
+          <Route path="loans/:fyYear" element={<LoanPage />} />
           <Route path="budget" element={<BudgetPage />} />
           <Route path="budget/:fyYear" element={<BudgetPage />} />
           <Route path="graphs" element={<GraphPage />} />

@@ -70,6 +70,7 @@ export interface AllConfigs {
   ASSET_HOLDER: ConfigItem[]
   ASSET_SUB_CATEGORY: ConfigItem[]
   IGNORE_CATEGORY: ConfigItem[]
+  LOAN_ACCOUNT: ConfigItem[]
   [key: string]: ConfigItem[]
 }
 
@@ -196,4 +197,54 @@ export interface BudgetSummary {
   projected_target_saving: number | null
   targeted_saving: number | null
   actual_loss_tax: number | null
+}
+
+// ---- Loans ----
+export interface LoanSettings {
+  personal_loan_interest_pct: number | null
+}
+
+export interface LoanColumn {
+  id: number
+  name: string
+  sort_order: number
+}
+
+export interface LoanEntry {
+  id: number
+  side: 'WITHDRAWN' | 'CREDITED'
+  entry_date: string | null
+  amounts: Record<string, number | null>
+}
+
+export interface LoanPrior {
+  withdrawn: number
+  credited: number
+}
+
+export interface LoanFYData {
+  withdrawn: LoanEntry[]
+  credited: LoanEntry[]
+  prior: Record<string, LoanPrior>
+}
+
+export interface LoanGiven {
+  id: number
+  given_date: string | null
+  person_name: string | null
+  payment_method: string | null
+  loan_amount: number | null
+  cleared_date: string | null
+  paid_amount: number | null
+  notes: string | null
+}
+
+export interface LoanGivenUpsert {
+  given_date?: string | null
+  person_name?: string | null
+  payment_method?: string | null
+  loan_amount?: number | null
+  cleared_date?: string | null
+  paid_amount?: number | null
+  notes?: string | null
 }

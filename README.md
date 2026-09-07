@@ -30,10 +30,11 @@ Login: `admin` / `admin123`
 - **Protection & Savings Targets** — Emergency Funds, Term Insurance, Gold, Silver; only created when user explicitly clicks "Set up"
 - **Liquid Assets** — current/target Fixed, Savings, Cash; only created when user explicitly clicks "Set up"
 - **Precious Metals** — live gold/silver prices (INR/gram) with manual override
+- **Loans** — self-loan tracker at `/loans`; multi-year FY ledger of money **Withdrawn** from your own savings accounts vs. **Credited** back, with shared add/remove account columns and horizontal scroll; unpaid balances roll forward as an "Opening (carried forward)" row each FY; summary of current loan per account plus the monthly interest you charge yourself (`Personal Loan Interest %` set in Configuration); separate "Loans Given to Others" bad-debt watch with outstanding totals
 - **Budget** — yearly budget planner at `/budget`; set per-category Amount/Month × Qty to project expenditure; compare Projected vs Actual with colour-coded progress bars; configurable date range; budget summary with income, tax, and saving targets
 - **Graphs** — interactive analytics at `/graphs`; stacked bar (monthly spend by category), donut (category breakdown), line chart (income vs spending vs investment), grouped bar (projected vs actual by category), area chart (asset value growth)
 - **User Management** — add/edit/delete users at `/users`
-- **Configuration** — runtime-editable dropdown lists at `/config`
+- **Configuration** — runtime-editable dropdown lists + settings at `/config`; a compact index of categories, each opening a Save/Cancel editor modal
 - **Labels** — all UI text in `frontend/public/labels.properties` (edit and reload to change)
 
 ## Project Structure
@@ -43,8 +44,8 @@ expenseandassettracker/
 ├── backend/
 │   ├── main.py              FastAPI app + router registration
 │   ├── database.py          SQLAlchemy engine + session
-│   ├── seed.py              Admin user + config defaults
-│   ├── migrate_monthly_year.py  One-time DB migration (adds fy_start_year)
+│   ├── seed.py              Admin user + config defaults (idempotent)
+│   ├── migrate.py           Idempotent, non-destructive schema migrations (runs before seed.py)
 │   ├── models/              SQLAlchemy ORM models
 │   ├── schemas/             Pydantic request/response models
 │   ├── routers/             FastAPI route handlers
@@ -72,7 +73,7 @@ expenseandassettracker/
 ## Financial Year
 
 FY runs April → March. `fy_start_year = 2025` means FY 2025-26 (Apr 2025 – Mar 2026).  
-The asset page URL encodes the year: `/assets/2025` for FY 2025-26.
+The asset and loan page URLs encode the year: `/assets/2025` / `/loans/2025` for FY 2025-26.
 
 ## Database
 

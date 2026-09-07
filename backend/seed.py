@@ -79,6 +79,10 @@ IGNORE_CATEGORIES = [
     "Positive Adjustment(Loan from Past me)",
 ]
 
+LOAN_ACCOUNTS = [
+    "SBI Savings", "HDFC Savings", "PNB Savings", "Emergency Fund",
+]
+
 SEED_DATA = {
     "EXPENSE_CATEGORY":  EXPENSE_CATEGORIES,
     "CREDIT_CARD":       CREDIT_CARDS,
@@ -88,6 +92,7 @@ SEED_DATA = {
     "ASSET_HOLDER":      ASSET_HOLDERS,
     "ASSET_SUB_CATEGORY": ASSET_SUB_CATEGORIES,
     "IGNORE_CATEGORY":   IGNORE_CATEGORIES,
+    "LOAN_ACCOUNT":      LOAN_ACCOUNTS,
 }
 
 

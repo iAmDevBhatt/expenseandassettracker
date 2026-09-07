@@ -32,5 +32,6 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-# Seed the DB on first run (idempotent), then start the server
-CMD ["sh", "-c", "cd /app/backend && python seed.py && uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+# On every start: apply idempotent schema migrations, seed defaults (idempotent),
+# then start the server. Migrations are non-destructive — see backend/migrate.py.
+CMD ["sh", "-c", "cd /app/backend && python migrate.py && python seed.py && uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
