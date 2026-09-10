@@ -55,7 +55,7 @@ export default function AssetPage() {
   const liquidMissing = !liquidQ.isLoading && liquidQ.data == null
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-screen-2xl mx-auto">
       {/* Header + year navigation */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h2 className="text-xl font-bold text-gray-800 mr-2">

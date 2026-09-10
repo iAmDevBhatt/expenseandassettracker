@@ -250,7 +250,7 @@ export default function LoanLedgerTables({ fyStartYear, data, columns, loanAccou
         )}
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         {renderTable(l('loan.ledger.withdrawn', 'Withdrawn'), 'WITHDRAWN', data.withdrawn, true)}
         {renderTable(l('loan.ledger.credited', 'Credited'), 'CREDITED', data.credited, false)}
       </div>

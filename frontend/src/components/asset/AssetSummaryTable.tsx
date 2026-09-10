@@ -53,7 +53,7 @@ export default function AssetSummaryTable({ assets, fyStartYear }: Props) {
     <div className="mb-6">
       <h3 className="text-base font-semibold text-gray-700 mb-2">{l('asset.summary.title', 'Asset Summary')}</h3>
       <div className="overflow-x-auto rounded border border-gray-200">
-        <table className="min-w-full text-xs text-gray-700">
+        <table className="min-w-full min-w-max text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-3 py-2 text-left font-medium sticky left-0 bg-gray-100 min-w-[160px]">

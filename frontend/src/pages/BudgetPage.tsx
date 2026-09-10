@@ -84,7 +84,7 @@ export default function BudgetPage() {
   const isCurrentFY = fyStartYear === currentFYStart
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-screen-xl mx-auto">
       {/* Header + FY navigation */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h2 className="text-xl font-bold text-gray-800 mr-2">{l('budget.page.title')}</h2>
@@ -121,46 +121,49 @@ export default function BudgetPage() {
 
       {/* Date range controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <span className="text-sm font-medium text-gray-700 mr-4">{l('budget.range.label')}:</span>
-        <span className="text-sm text-gray-500 mr-2">{l('budget.range.start')}:</span>
-        <select
-          className="text-sm border border-gray-300 rounded px-2 py-1 mr-1"
-          value={startMonth}
-          onChange={e => setStartMonth(parseInt(e.target.value))}
-        >
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <option key={m} value={m}>{MONTH_SHORT[m]}</option>
-          ))}
-        </select>
-        <select
-          className="text-sm border border-gray-300 rounded px-2 py-1 mr-4"
-          value={startYear}
-          onChange={e => setStartYear(parseInt(e.target.value))}
-        >
-          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+        <p className="text-sm font-medium text-gray-700 mb-3">{l('budget.range.label')}:</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-500">{l('budget.range.start')}:</span>
+          <select
+            className="text-sm border border-gray-300 rounded px-2 py-1"
+            value={startMonth}
+            onChange={e => setStartMonth(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+              <option key={m} value={m}>{MONTH_SHORT[m]}</option>
+            ))}
+          </select>
+          <select
+            className="text-sm border border-gray-300 rounded px-2 py-1"
+            value={startYear}
+            onChange={e => setStartYear(parseInt(e.target.value))}
+          >
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
 
-        <span className="text-sm text-gray-500 mr-2">{l('budget.range.to')}</span>
-        <span className="text-sm text-gray-500 mr-2">{l('budget.range.end')}:</span>
-        <select
-          className="text-sm border border-gray-300 rounded px-2 py-1 mr-1"
-          value={endMonth}
-          onChange={e => setEndMonth(parseInt(e.target.value))}
-        >
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <option key={m} value={m}>{MONTH_SHORT[m]}</option>
-          ))}
-        </select>
-        <select
-          className="text-sm border border-gray-300 rounded px-2 py-1"
-          value={endYear}
-          onChange={e => setEndYear(parseInt(e.target.value))}
-        >
-          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <span className="ml-3 text-xs text-gray-400">
-          {MONTH_NAMES[startMonth]} {startYear} – {MONTH_NAMES[endMonth]} {endYear}
-        </span>
+          <span className="text-sm text-gray-500">{l('budget.range.to')}</span>
+
+          <span className="text-sm text-gray-500">{l('budget.range.end')}:</span>
+          <select
+            className="text-sm border border-gray-300 rounded px-2 py-1"
+            value={endMonth}
+            onChange={e => setEndMonth(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+              <option key={m} value={m}>{MONTH_SHORT[m]}</option>
+            ))}
+          </select>
+          <select
+            className="text-sm border border-gray-300 rounded px-2 py-1"
+            value={endYear}
+            onChange={e => setEndYear(parseInt(e.target.value))}
+          >
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <span className="text-xs text-gray-400">
+            {MONTH_NAMES[startMonth]} {startYear} – {MONTH_NAMES[endMonth]} {endYear}
+          </span>
+        </div>
       </div>
 
       {/* Budget category table */}

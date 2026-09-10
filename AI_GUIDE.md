@@ -615,3 +615,42 @@ Changes to an **existing** table (add/rename/drop column, type change, new const
 docker cp <container>:/app/data/tracker.db ./tracker-backup-$(date +%F).db
 ```
 `docker-compose down` keeps the `tracker_data` volume; `docker-compose down -v` deletes it.
+
+---
+
+## 14. Responsive Design (Mobile / Tablet / Desktop)
+
+The frontend is fully responsive using Tailwind CSS breakpoints. No backend changes are needed.
+
+### Breakpoints used
+| Prefix | Width | Target |
+|--------|-------|--------|
+| *(none)* | 0px+ | Mobile (≤ 639px) |
+| `sm:` | 640px+ | Large phones / small tablets |
+| `md:` | 768px+ | Tablet |
+| `lg:` | 1024px+ | Desktop |
+
+### Navbar (Navbar.tsx)
+- Desktop (`lg:`): all nav links visible inline.
+- Below `lg`: a hamburger button (three-bar → X animation) reveals a full-width dropdown menu. Links and user/logout are inside the dropdown; clicking a link closes the menu.
+
+### Tables
+All data tables use `overflow-x-auto` so they scroll horizontally on narrow screens without breaking the page layout. Wide tables (AssetSummaryTable, AssetDetailsTable) additionally carry `min-w-max` on the inner `<table>` to prevent column compression.
+
+### ExpenseTable — card layout on mobile
+Below `sm` (< 640px), the expense rows render as stacked cards instead of a table. Each card shows date, amount, description, CC info, category badge, and edit/delete buttons. The standard table reappears at `sm:`.
+
+### Page padding
+All full-width pages (`AssetPage`, `LoanPage`, `BudgetPage`, `GraphPage`) use `p-3 sm:p-6` so phones get tighter margins.
+
+### Forms
+Multi-column forms use `grid-cols-1 sm:grid-cols-2` so they stack on mobile.
+
+### Charts (GraphPage)
+All charts use Recharts `<ResponsiveContainer width="100%">` which handles resize automatically.
+
+### LoanLedgerTables
+Side-by-side ledger tables switch at `md:flex-row` (tablet and above) rather than `xl:`.
+
+### BudgetPage date-range controls
+Range selectors use `flex flex-wrap` with `gap-2` so they wrap naturally on narrow screens.

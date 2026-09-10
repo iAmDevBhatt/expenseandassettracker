@@ -107,7 +107,7 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
       </div>
 
       <div className="overflow-x-auto rounded border border-gray-200">
-        <table className="min-w-full text-xs text-gray-700">
+        <table className="min-w-full min-w-max text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-2 py-2 text-left font-medium sticky left-0 bg-gray-100 min-w-[130px]">

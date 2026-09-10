@@ -59,7 +59,7 @@ export function OperatingCashFlowTable({ monthYearId, rows }: Props) {
                     defaultValue={row.amount}
                     ref={(el) => { inputRefs.current[row.row_key] = el }}
                     onBlur={() => handleBlur(row.row_key)}
-                    className="w-40 text-right border-b border-transparent hover:border-gray-300 focus:border-primary-500 focus:outline-none py-1 px-2 bg-transparent"
+                    className="w-full sm:w-40 text-right border-b border-transparent hover:border-gray-300 focus:border-primary-500 focus:outline-none py-1 px-2 bg-transparent"
                   />
                 )}
               </td>

@@ -130,7 +130,7 @@ export default function GraphPage() {
   const noData = <p className="text-sm text-gray-400 py-8 text-center">{l('graph.nodata')}</p>
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto">
+    <div className="p-3 sm:p-6 max-w-screen-xl mx-auto">
       {/* Header + FY navigation */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h2 className="text-xl font-bold text-gray-800 mr-2">{l('graph.page.title')}</h2>
