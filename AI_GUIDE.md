@@ -654,3 +654,53 @@ Side-by-side ledger tables switch at `md:flex-row` (tablet and above) rather tha
 
 ### BudgetPage date-range controls
 Range selectors use `flex flex-wrap` with `gap-2` so they wrap naturally on narrow screens.
+
+---
+
+## 15. Expense Page Layout
+
+`ExpensePage.tsx` renders content in two rows:
+
+**Row 1 — side by side** (`grid grid-cols-1 xl:grid-cols-2 gap-6`):
+- Left: `<ExpenseTable>` — the expense list with add/edit/delete
+- Right: `<OperatingCashFlowTable>` — the 25-row OCF table
+
+On screens narrower than `xl` (1280px) these stack vertically.
+
+**Row 2 — side by side** (`grid grid-cols-1 md:grid-cols-2 gap-6`):
+- Left: `<CategorySummaryTable>`
+- Right: `<FinancialSummaryTable>`
+
+---
+
+## 16. Searchable Category Dropdown (AddExpenseModal)
+
+`AddExpenseModal.tsx` replaces the native `<select>` for the category field with a custom combobox:
+
+- A text `<input>` lets the user type to filter `configs.EXPENSE_CATEGORY` items.
+- A floating dropdown (absolute-positioned, `z-50`, max-height scrollable) shows matching options.
+- Clicking an option sets `form.category` and closes the dropdown.
+- When a category is selected and the search box is empty, the selected value is shown via an absolutely-positioned `<span>` overlay (pointer-events-none) so it reads like a normal field.
+- A `mousedown` listener on `document` closes the dropdown when the user clicks outside (`categoryRef`).
+- The `valid` check still requires `form.category` to be non-empty before the form can submit.
+
+**EditExpenseModal** uses the same `<select>` pattern and has not been changed — apply the same combobox treatment there if needed.
+
+---
+
+## 17. Budget Category Table — Add / Delete Rows
+
+`BudgetCategoryTable.tsx` manages a `visibleCategories` local state (initially the categories that already have a saved `BudgetEntry`). The full `categories` prop (from `configs.EXPENSE_CATEGORY`) is still passed but used only as the universe of available options.
+
+### Delete a row
+Each table row has an `×` button (rightmost column). Clicking it:
+1. Builds `allEntries` from the remaining visible categories (preserving any in-progress edits).
+2. Appends a zero entry `{ category, amount_per_month: 0, qty: 0 }` for the deleted category so the backend records the zero (the bulk-upsert endpoint always overwrites).
+3. Calls `onSave(allEntries)` immediately.
+4. Removes the category from `visibleCategories` and clears its `editing` state.
+
+### Add a row
+Below the table, an `+ Add category` button opens a searchable input. The dropdown lists only `hiddenCategories` (categories in the `categories` prop that are not currently in `visibleCategories`). Selecting one appends it to `visibleCategories` with default values `0 / 0` — the user then edits and tabs away to save.
+
+### Sync on reload
+A `useEffect` on `entries` re-merges persisted categories into `visibleCategories` after each successful save, so a page refresh always shows all categories that have non-zero backend entries.

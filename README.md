@@ -22,7 +22,7 @@ Login: `admin` / `admin123`
 
 ## Features
 
-- **Expenses** — record monthly expenses by category; credit card tracking; navigate any month across 60+ years via ‹/› arrows or jump pickers; months are only created in the DB when explicitly started
+- **Expenses** — record monthly expenses by category; credit card tracking; navigate any month across 60+ years via ‹/› arrows or jump pickers; months are only created in the DB when explicitly started; expense table and operating cash flow sit side by side on wide screens; category field in the Add Expense form is a searchable combobox
 - **Cash Flow** — 24-row operating cash flow table per month (22 editable + 2 computed)
 - **Financial Summary** — income vs. spending vs. investment vs. open balance
 - **Assets** — multi-year FY grid (Apr–Mar) with monthly values per asset; navigate between financial years via URL (`/assets/2025`, `/assets/2026`, …)
@@ -31,7 +31,7 @@ Login: `admin` / `admin123`
 - **Liquid Assets** — current/target Fixed, Savings, Cash; only created when user explicitly clicks "Set up"
 - **Precious Metals** — live gold/silver prices (INR/gram) with manual override
 - **Loans** — self-loan tracker at `/loans`; multi-year FY ledger of money **Withdrawn** from your own savings accounts vs. **Credited** back, with shared add/remove account columns and horizontal scroll; unpaid balances roll forward as an "Opening (carried forward)" row each FY; summary of current loan per account plus the monthly interest you charge yourself (`Personal Loan Interest %` set in Configuration); separate "Loans Given to Others" bad-debt watch with outstanding totals
-- **Budget** — yearly budget planner at `/budget`; set per-category Amount/Month × Qty to project expenditure; compare Projected vs Actual with colour-coded progress bars; configurable date range; budget summary with income, tax, and saving targets
+- **Budget** — yearly budget planner at `/budget`; set per-category Amount/Month × Qty to project expenditure; compare Projected vs Actual with colour-coded progress bars; configurable date range; budget summary with income, tax, and saving targets; add or delete category rows directly in the table
 - **Graphs** — interactive analytics at `/graphs`; stacked bar (monthly spend by category), donut (category breakdown), line chart (income vs spending vs investment), grouped bar (projected vs actual by category), area chart (asset value growth)
 - **User Management** — add/edit/delete users at `/users`
 - **Configuration** — runtime-editable dropdown lists + settings at `/config`; a compact index of categories, each opening a Save/Cancel editor modal

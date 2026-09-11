@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '../common/Modal'
 import { createExpense } from '../../api/expenseApi'
@@ -22,6 +22,19 @@ export function AddExpenseModal({ monthYearId, onClose }: Props) {
     paid_via_cc: '',
     category: '',
   })
+  const [categorySearch, setCategorySearch] = useState('')
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const categoryRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
+        setCategoryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -68,12 +81,44 @@ export function AddExpenseModal({ monthYearId, onClose }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">{l('addexpense.field.category')}</label>
-          <select value={form.category} onChange={set('category')} className="input-field" required>
-            <option value="">{l('addexpense.field.category.placeholder')}</option>
-            {configs?.EXPENSE_CATEGORY?.map((c) => (
-              <option key={c.id} value={c.value}>{c.value}</option>
-            ))}
-          </select>
+          <div ref={categoryRef} className="relative">
+            <input
+              type="text"
+              className="input-field"
+              placeholder={form.category || l('addexpense.field.category.placeholder')}
+              value={categorySearch}
+              onChange={e => { setCategorySearch(e.target.value); setCategoryOpen(true) }}
+              onFocus={() => setCategoryOpen(true)}
+              autoComplete="off"
+            />
+            {form.category && !categorySearch && (
+              <span className="absolute inset-y-0 left-3 flex items-center text-sm text-gray-800 pointer-events-none">
+                {form.category}
+              </span>
+            )}
+            {categoryOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-52 overflow-y-auto">
+                {(configs?.EXPENSE_CATEGORY ?? [])
+                  .filter(c => c.value.toLowerCase().includes(categorySearch.toLowerCase()))
+                  .map(c => (
+                    <div
+                      key={c.id}
+                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${form.category === c.value ? 'bg-blue-100 font-medium' : ''}`}
+                      onMouseDown={() => {
+                        setForm(prev => ({ ...prev, category: c.value }))
+                        setCategorySearch('')
+                        setCategoryOpen(false)
+                      }}
+                    >
+                      {c.value}
+                    </div>
+                  ))}
+                {(configs?.EXPENSE_CATEGORY ?? []).filter(c => c.value.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-400">No matches</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div>

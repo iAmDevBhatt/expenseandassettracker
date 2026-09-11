@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { BudgetEntry, BudgetEntryUpsert, CategoryActual } from '../../types'
 import { useLabels } from '../../hooks/useLabels'
 
@@ -24,7 +24,51 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
   const actualsMap: Record<string, number> = {}
   for (const a of actuals) actualsMap[a.category] = a.actual
 
+  // Visible rows = categories that have a saved entry OR were manually added this session
+  const [visibleCategories, setVisibleCategories] = useState<string[]>(() =>
+    categories.filter(c => !!entryMap[c])
+  )
   const [editing, setEditing] = useState<Record<string, RowState>>({})
+  const [addSearch, setAddSearch] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+
+  // When entries reload (e.g. after save), sync visible list to include all persisted entries
+  useEffect(() => {
+    setVisibleCategories(prev => {
+      const persisted = categories.filter(c => !!entryMap[c])
+      const merged = [...new Set([...persisted, ...prev])]
+      return merged.filter(c => categories.includes(c))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries])
+
+  const hiddenCategories = categories.filter(c => !visibleCategories.includes(c))
+
+  const handleAdd = (cat: string) => {
+    setVisibleCategories(prev => [...prev, cat])
+    setAddSearch('')
+    setAddOpen(false)
+  }
+
+  const handleDelete = (cat: string) => {
+    // Save a zero entry to the backend, then remove from visible list
+    const allEntries: BudgetEntryUpsert[] = visibleCategories
+      .filter(c => c !== cat)
+      .map(c => {
+        const e = entryMap[c]
+        const ed = editing[c]
+        return {
+          category: c,
+          amount_per_month: ed ? parseFloat(ed.amount_per_month) || 0 : (e ? Number(e.amount_per_month) : 0),
+          qty: ed ? Math.min(12, Math.max(0, parseInt(ed.qty) || 0)) : (e ? e.qty : 0),
+        }
+      })
+    // Also send a zeroed entry for the deleted category so the backend clears it
+    allEntries.push({ category: cat, amount_per_month: 0, qty: 0 })
+    onSave(allEntries)
+    setVisibleCategories(prev => prev.filter(c => c !== cat))
+    setEditing(prev => { const n = { ...prev }; delete n[cat]; return n })
+  }
 
   const getRow = (cat: string): RowState => {
     if (editing[cat]) return editing[cat]
@@ -41,7 +85,7 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
 
   const handleBlur = (cat: string) => {
     const row = getRow(cat)
-    const allEntries: BudgetEntryUpsert[] = categories.map(c => {
+    const allEntries: BudgetEntryUpsert[] = visibleCategories.map(c => {
       if (c === cat) {
         return {
           category: c,
@@ -69,12 +113,16 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
     )
   }
 
-  const grandProjected = categories.reduce((sum, cat) => {
+  const grandProjected = visibleCategories.reduce((sum, cat) => {
     const row = getRow(cat)
     return sum + (parseFloat(row.amount_per_month) || 0) * (parseInt(row.qty) || 0)
   }, 0)
 
-  const grandActual = categories.reduce((sum, cat) => sum + (actualsMap[cat] || 0), 0)
+  const grandActual = visibleCategories.reduce((sum, cat) => sum + (actualsMap[cat] || 0), 0)
+
+  const filteredHidden = hiddenCategories.filter(c =>
+    c.toLowerCase().includes(addSearch.toLowerCase())
+  )
 
   return (
     <div className="mb-6">
@@ -93,10 +141,11 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
               <th className="px-4 py-2 text-right font-medium w-36">{l('budgettable.col.projected')}</th>
               <th className="px-4 py-2 text-right font-medium w-36">{l('budgettable.col.actual')}</th>
               <th className="px-4 py-2 text-left font-medium w-48">{l('budgettable.col.percentage')}</th>
+              <th className="px-2 py-2 w-10" />
             </tr>
           </thead>
           <tbody>
-            {categories.map((cat, i) => {
+            {visibleCategories.map((cat, i) => {
               const row = getRow(cat)
               const projected = (parseFloat(row.amount_per_month) || 0) * (parseInt(row.qty) || 0)
               const actual = actualsMap[cat] || 0
@@ -150,6 +199,15 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
                       <span className="text-gray-400 text-xs">—</span>
                     )}
                   </td>
+                  <td className="px-2 py-2 text-center">
+                    <button
+                      onClick={() => handleDelete(cat)}
+                      className="text-gray-300 hover:text-red-500 transition-colors text-base leading-none"
+                      title={`Remove ${cat}`}
+                    >
+                      ×
+                    </button>
+                  </td>
                 </tr>
               )
             })}
@@ -166,10 +224,58 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
                 {grandActual > 0 ? grandActual.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
               </td>
               <td />
+              <td />
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* Add category row */}
+      {hiddenCategories.length > 0 && (
+        <div className="mt-3 relative inline-block">
+          {!addOpen ? (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            >
+              <span className="text-lg leading-none">+</span> Add category
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <input
+                  autoFocus
+                  type="text"
+                  className="text-sm border border-gray-300 rounded px-2 py-1 w-52"
+                  placeholder="Search category…"
+                  value={addSearch}
+                  onChange={e => setAddSearch(e.target.value)}
+                  onBlur={() => { if (!addSearch) setAddOpen(false) }}
+                />
+                {(addSearch || addOpen) && filteredHidden.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+                    {filteredHidden.map(c => (
+                      <div
+                        key={c}
+                        className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50"
+                        onMouseDown={() => handleAdd(c)}
+                      >
+                        {c}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {filteredHidden.length === 0 && addSearch && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg px-3 py-2 text-sm text-gray-400">
+                    No categories found
+                  </div>
+                )}
+              </div>
+              <button onClick={() => { setAddOpen(false); setAddSearch('') }} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -167,19 +167,24 @@ export function ExpensePage() {
       {/* Month exists — show data */}
       {!monthLoading && monthExists && (
         <>
-          {monthYear && <ExpenseTable monthYearId={monthYear.id} />}
+          {/* Expense table + Cash flow side by side */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {monthYear && <ExpenseTable monthYearId={monthYear.id} />}
 
-          {dashLoading ? (
-            <LoadingSpinner label={l('expensepage.loading.dashboard')} />
-          ) : dashboard ? (
-            <div className="grid gap-6">
+            {dashLoading ? (
+              <LoadingSpinner label={l('expensepage.loading.dashboard')} />
+            ) : dashboard ? (
               <OperatingCashFlowTable monthYearId={monthYear!.id} rows={dashboard.cash_flow} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <CategorySummaryTable rows={dashboard.category_summary} />
-                <FinancialSummaryTable summary={dashboard.financial_summary} />
-              </div>
+            ) : null}
+          </div>
+
+          {/* Category + Financial summary below */}
+          {!dashLoading && dashboard && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CategorySummaryTable rows={dashboard.category_summary} />
+              <FinancialSummaryTable summary={dashboard.financial_summary} />
             </div>
-          ) : null}
+          )}
         </>
       )}
     </div>
