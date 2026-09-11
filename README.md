@@ -114,6 +114,16 @@ After this, `.gitignore` (which already includes `.venv/`) will prevent it from 
 
 > **Why this happens:** If `.venv` was created and `git add`-ed before `.gitignore` was in place, git continues tracking it even after the ignore rule is added. `git rm --cached` is the fix — it tells git to stop tracking the files without removing them from disk.
 
+**After pulling this cleanup on another machine**, git will delete the local `.venv` folder as part of the pull. Recreate it with:
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+```
+
+Then `.\start.ps1` works as normal. This is a one-time step — after that, the venv is fully local and git never touches it again.
+
 ---
 
 ## Docker Deployment
