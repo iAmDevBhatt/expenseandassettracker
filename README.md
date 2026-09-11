@@ -83,6 +83,39 @@ PostgreSQL also requires `psycopg2-binary` (not installed by default — see `re
 
 See `AI_GUIDE.md` for the full table catalog, API reference, and computed field rules.
 
+## Fixing a Accidentally Committed `.venv`
+
+If the `backend/.venv` folder was ever committed to git (e.g. from a machine where `.gitignore` wasn't respected), follow these steps to remove it from tracking without deleting the local files.
+
+**1. Check if `.venv` is tracked:**
+```powershell
+git ls-files backend/.venv
+```
+If this lists files, the venv is tracked and needs to be removed.
+
+**2. Remove it from git tracking (keeps local files intact):**
+```powershell
+git rm -r --cached backend/.venv
+```
+This stages deletions for all `.venv` files without touching your actual venv on disk.
+
+**3. Verify the staged changes look correct:**
+```powershell
+git status --short | Select-Object -First 10
+```
+You should see a large number of `D` (deleted) entries all under `backend/.venv/`.
+
+**4. Commit the cleanup:**
+```powershell
+git commit -m "Remove backend/.venv from git tracking"
+```
+
+After this, `.gitignore` (which already includes `.venv/`) will prevent it from being committed again. Your local venv and the running backend are unaffected.
+
+> **Why this happens:** If `.venv` was created and `git add`-ed before `.gitignore` was in place, git continues tracking it even after the ignore rule is added. `git rm --cached` is the fix — it tells git to stop tracking the files without removing them from disk.
+
+---
+
 ## Docker Deployment
 
 The project ships with a multi-stage `Dockerfile` that builds the React frontend and serves it via FastAPI in a single container.
