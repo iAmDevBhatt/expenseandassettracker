@@ -7,6 +7,7 @@ import {
   getBudgetActuals,
   getBudgetSummary,
   saveBudgetSummary,
+  copyBudgetFromPreviousFY,
 } from '../api/budgetApi'
 import { getCurrentFY, getFYForYear } from '../utils/financialYear'
 import { useConfigStore } from '../store/configStore'
@@ -77,6 +78,14 @@ export default function BudgetPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['budget-summary', fyStartYear] }),
   })
 
+  const copyFromPrevMut = useMutation({
+    mutationFn: () => copyBudgetFromPreviousFY(fyStartYear),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budget-entries', fyStartYear] }),
+  })
+
+  const prevFYLabel = getFYForYear(fyStartYear - 1).label
+  const isEmptyFY = !entriesQ.isLoading && (entriesQ.data?.length ?? 0) === 0
+
   const baseYear = currentFYStart
   const yearOptions: number[] = []
   for (let y = baseYear - 5; y <= baseYear + 5; y++) yearOptions.push(y)
@@ -117,7 +126,38 @@ export default function BudgetPage() {
             {l('budget.page.currentfy')}
           </button>
         )}
+
+        <button
+          className="ml-auto px-3 py-1 rounded border border-emerald-500 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          onClick={() => copyFromPrevMut.mutate()}
+          disabled={copyFromPrevMut.isPending}
+          title={`Copy all categories from ${prevFYLabel} into this FY (skips categories already added)`}
+        >
+          {copyFromPrevMut.isPending ? 'Copying…' : `⬇ Copy from ${prevFYLabel}`}
+        </button>
       </div>
+
+      {/* Empty-state prompt when no entries yet */}
+      {isEmptyFY && !copyFromPrevMut.isPending && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between gap-4">
+          <p className="text-sm text-emerald-800">
+            No budget categories yet for this FY. Pull in last year's categories to get started quickly.
+          </p>
+          <button
+            className="shrink-0 px-3 py-1.5 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+            onClick={() => copyFromPrevMut.mutate()}
+          >
+            Copy from {prevFYLabel}
+          </button>
+        </div>
+      )}
+
+      {copyFromPrevMut.isError && (
+        <p className="text-sm text-red-500 mb-3">Failed to copy — please try again.</p>
+      )}
+      {copyFromPrevMut.isSuccess && (
+        <p className="text-sm text-emerald-600 mb-3">Categories copied from {prevFYLabel}. You can now edit the amounts.</p>
+      )}
 
       {/* Date range controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">

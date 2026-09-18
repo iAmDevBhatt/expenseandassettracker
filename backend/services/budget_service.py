@@ -173,6 +173,40 @@ def get_monthly_summary(user: User, fy_start_year: int, db: Session) -> List[Mon
     return result
 
 
+def copy_entries_from_previous_fy(
+    user: User, fy_start_year: int, db: Session
+) -> List[BudgetEntry]:
+    """Copy all entries from the previous FY into fy_start_year.
+
+    Only categories not already present in the target FY are inserted,
+    so existing edits are never overwritten.
+    Returns the updated entry list for fy_start_year.
+    """
+    prev_fy = fy_start_year - 1
+    source_entries = (
+        db.query(BudgetEntry)
+        .filter_by(user_id=user.id, fy_start_year=prev_fy)
+        .all()
+    )
+    existing_categories = {
+        e.category
+        for e in db.query(BudgetEntry)
+        .filter_by(user_id=user.id, fy_start_year=fy_start_year)
+        .all()
+    }
+    for src in source_entries:
+        if src.category not in existing_categories:
+            db.add(BudgetEntry(
+                user_id=user.id,
+                fy_start_year=fy_start_year,
+                category=src.category,
+                amount_per_month=src.amount_per_month,
+                qty=src.qty,
+            ))
+    db.commit()
+    return list_entries(user, fy_start_year, db)
+
+
 def get_or_create_summary(user: User, fy_start_year: int, db: Session) -> BudgetSummary:
     summary = db.query(BudgetSummary).filter_by(user_id=user.id, fy_start_year=fy_start_year).first()
     if not summary:

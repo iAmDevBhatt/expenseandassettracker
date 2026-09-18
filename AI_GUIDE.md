@@ -558,6 +558,12 @@ PUT  /api/budget/{fy_start_year}/entries
      Body: {fy_start_year: int, entries: [{category, amount_per_month, qty}, ...]}
      → Bulk upsert (insert or update) all entries in one transaction
 
+POST /api/budget/{fy_start_year}/copy-from-previous
+     → Copy all budget entries from FY (fy_start_year - 1) into fy_start_year.
+       Only categories not already present in the target FY are inserted —
+       existing entries are never overwritten. Idempotent and safe to call multiple times.
+       Returns the updated entry list for fy_start_year.
+
 GET  /api/budget/{fy_start_year}/actuals
      Query: start_year, start_month, end_year, end_month
      → Cross-range expense sums per category; joins month_years → expenses

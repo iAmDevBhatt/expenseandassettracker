@@ -188,7 +188,7 @@ All business logic lives here — no SQL in routers:
 - `protection_target_service.py` — `find` (returns existing rows, never seeds); `seed` (explicit one-time setup of 4 fixed rows); `update`
 - `liquid_asset_service.py` — `find` (returns row or None, never creates); `create` (explicit one-time setup); `update`
 - `precious_metal_service.py` — full CRUD + `fetch_metal_price(metal)` (httpx → metals.live + exchangerate-api → INR/gram; returns None on failure)
-- `budget_service.py` — `list_entries`, `bulk_upsert_entries` (all categories in one transaction), `get_actuals_by_category` (cross-range JOIN query on month_years + expenses), `get_monthly_breakdown` (per-month category sums for Apr→Mar), `get_monthly_summary` (per-month income/spending/investment), `get_or_create_summary`, `update_summary`
+- `budget_service.py` — `list_entries`, `bulk_upsert_entries` (all categories in one transaction), `copy_entries_from_previous_fy` (reads prior FY entries and inserts only those categories not already present in the target FY — safe to call multiple times), `get_actuals_by_category` (cross-range JOIN query on month_years + expenses), `get_monthly_breakdown` (per-month category sums for Apr→Mar), `get_monthly_summary` (per-month income/spending/investment), `get_or_create_summary`, `update_summary`
 - `loan_service.py` — `get/update_settings` (auto-creates the 1-row settings), `list/add/delete_column` (delete also purges that account's amount cells), `get_fy_data` (this FY's Withdrawn/Credited entries + `prior` = summed amounts for all earlier FYs → opening balance), `create/update/delete_entry`, `upsert_amount` (null deletes the cell), `list/create/update/delete_given`
 
 ### `routers/`
@@ -201,7 +201,7 @@ FastAPI routers. Each is a thin adapter — validates input, calls service, retu
 - `config_items.py` — `GET/POST/PUT/DELETE /api/config/...`
 - `dashboard.py` — `GET /api/months/{id}/dashboard`
 - `assets.py` — asset CRUD + monthly values (`PUT/DELETE /api/assets/{id}/monthly/{fy_year}/{month_key}`) + protection targets (check-or-init pattern) + liquid asset (check-or-init pattern) + precious metals + live metal price
-- `budget.py` — `GET/PUT /api/budget/{fy_start_year}/entries`, `GET /api/budget/{fy_start_year}/actuals` (query params: start/end year+month), `GET/PUT /api/budget/{fy_start_year}/summary`, `GET /api/budget/{fy_start_year}/monthly-breakdown`, `GET /api/budget/{fy_start_year}/monthly-summary`
+- `budget.py` — `GET/PUT /api/budget/{fy_start_year}/entries`, `POST /api/budget/{fy_start_year}/copy-from-previous` (copies all entries from the prior FY into this FY, skipping categories already present), `GET /api/budget/{fy_start_year}/actuals` (query params: start/end year+month), `GET/PUT /api/budget/{fy_start_year}/summary`, `GET /api/budget/{fy_start_year}/monthly-breakdown`, `GET /api/budget/{fy_start_year}/monthly-summary`
 - `loans.py` — `GET/PUT /api/loans/settings`, `GET/POST /api/loans/columns` + `DELETE /api/loans/columns/{id}`, `GET/POST/PUT/DELETE /api/loans/given...`, `PUT/DELETE /api/loans/entries/{id}` + `PUT /api/loans/entries/{id}/amounts/{account_name}`, `GET /api/loans/{fy_start_year}/data`, `POST /api/loans/{fy_start_year}/entries`
 - `deps.py` — `get_current_user` dependency (JWT → User object)
 
@@ -251,7 +251,7 @@ One file per API resource. Each exports typed async functions using the Axios in
 - `monthApi.ts` — `listMonths`, `checkMonth` (no-create, returns null on 404), `createMonth` (explicit), `getOrCreateMonth` (legacy)
 - `userApi.ts` — `listUsers`, `createUser`, `updateUser`, `deleteUser`
 - `assetApi.ts` — all asset functions including `upsertMonthlyValue(assetId, monthKey, amount, fyStartYear)`; `listProtectionTargets` (empty array if not set up) + `initProtectionTargets` (explicit setup); `getLiquidAsset` (null if not set up) + `initLiquidAsset` (explicit setup); precious metals; live metal price
-- `budgetApi.ts` — `getBudgetEntries`, `saveBudgetEntries` (bulk PUT), `getBudgetActuals` (cross-range category sums), `getBudgetSummary`, `saveBudgetSummary`, `getMonthlyBreakdown`, `getMonthlySummary`
+- `budgetApi.ts` — `getBudgetEntries`, `saveBudgetEntries` (bulk PUT), `copyBudgetFromPreviousFY` (POST copy-from-previous), `getBudgetActuals` (cross-range category sums), `getBudgetSummary`, `saveBudgetSummary`, `getMonthlyBreakdown`, `getMonthlySummary`
 - `loanApi.ts` — `getLoanSettings`/`updateLoanSettings`; `listLoanColumns`/`addLoanColumn`/`deleteLoanColumn`; `getLoanFYData`; `createLoanEntry`/`updateLoanEntry`/`deleteLoanEntry`/`upsertLoanAmount`; `listLoansGiven`/`createLoanGiven`/`updateLoanGiven`/`deleteLoanGiven`
 
 ### `src/store/`
@@ -305,7 +305,7 @@ Zustand stores for client-only state:
 - `ConfigPage.tsx` — compact index: one tappable row per `list_type` (with item count) plus a "Loan Settings" row; a row opens `ConfigListModal` / `LoanSettingsModal`, edits are saved from the modal, then it returns to the index
 - `UserManagementPage.tsx` — list users, add user form, edit modal; delete hidden for logged-in user
 - `AssetPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders all 5 asset tables. Protection Targets and Liquid Assets sections show a "Set up" placeholder with an Initialise button instead of auto-creating rows on page load
-- `BudgetPage.tsx` — reads `fyYear` from URL params; default range April→March of selected FY; date range selectors re-query actuals; bulk-saves category budget entries on blur; budget summary entries save on blur
+- `BudgetPage.tsx` — reads `fyYear` from URL params; default range April→March of selected FY; date range selectors re-query actuals; bulk-saves category budget entries on blur; budget summary entries save on blur; "Copy from FY YYYY-YY" button in the header copies all categories from the prior FY (additive, never overwrites existing entries); a green banner prompts the copy when the FY has no entries yet
 - `LoanPage.tsx` — reads `fyYear` from URL params; Prev/Next/Current FY navigation; renders `LoanSummary` (totals + per-account current loan & monthly interest), `LoansGivenTable` (bad-debt watch, inline add/edit/delete), and `LoanLedgerTables` (Withdrawn + Credited side by side, shared account columns added/removed from a config-backed picker, "Opening (carried forward)" row from prior FYs, cells save on blur). Rows/cells are only persisted when the user adds them / types a value
 - `GraphPage.tsx` — reads `fyYear` from URL params; 5 Recharts panels (stacked bar, donut pie, multi-line, grouped bar projected vs actual, area chart); all data from budget API endpoints + existing assets endpoint
 

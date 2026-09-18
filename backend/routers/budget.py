@@ -38,6 +38,15 @@ def upsert_entries(
     return budget_service.bulk_upsert_entries(current_user, fy_start_year, data.entries, db)
 
 
+@router.post("/{fy_start_year}/copy-from-previous", response_model=List[BudgetEntryOut])
+def copy_from_previous(
+    fy_start_year: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return budget_service.copy_entries_from_previous_fy(current_user, fy_start_year, db)
+
+
 @router.get("/{fy_start_year}/actuals", response_model=ActualsResponse)
 def get_actuals(
     fy_start_year: int,

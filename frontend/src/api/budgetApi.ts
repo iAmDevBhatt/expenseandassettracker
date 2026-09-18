@@ -24,6 +24,11 @@ export const saveBudgetEntries = async (
   return data
 }
 
+export const copyBudgetFromPreviousFY = async (fyStartYear: number): Promise<BudgetEntry[]> => {
+  const { data } = await api.post<BudgetEntry[]>(`/api/budget/${fyStartYear}/copy-from-previous`)
+  return data
+}
+
 export const getBudgetActuals = async (
   fyStartYear: number,
   startYear: number,
