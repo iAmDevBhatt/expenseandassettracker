@@ -7,6 +7,7 @@ interface Props {
   entries: BudgetEntry[]
   actuals: CategoryActual[]
   onSave: (entries: BudgetEntryUpsert[]) => void
+  onReorder: (draggedCategory: string, targetCategory: string) => void
   saving: boolean
 }
 
@@ -15,8 +16,10 @@ interface RowState {
   qty: string
 }
 
-export default function BudgetCategoryTable({ categories, entries, actuals, onSave, saving }: Props) {
+export default function BudgetCategoryTable({ categories, entries, actuals, onSave, onReorder, saving }: Props) {
   const { l } = useLabels()
+  const [dragCat, setDragCat] = useState<string | null>(null)
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null)
 
   const entryMap: Record<string, BudgetEntry> = {}
   for (const e of entries) entryMap[e.category] = e
@@ -24,9 +27,13 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
   const actualsMap: Record<string, number> = {}
   for (const a of actuals) actualsMap[a.category] = a.actual
 
-  // Visible rows = categories that have a saved entry OR were manually added this session
+  // A "deleted" row is saved as a zeroed-out entry (no per-row delete endpoint exists),
+  // so it must not count as persisted or it reappears on next sync/reload.
+  const isSaved = (e?: BudgetEntry) => !!e && (Number(e.amount_per_month) > 0 || Number(e.qty) > 0)
+
+  // Visible rows = categories that have a saved (non-zero) entry OR were manually added this session
   const [visibleCategories, setVisibleCategories] = useState<string[]>(() =>
-    categories.filter(c => !!entryMap[c])
+    categories.filter(c => isSaved(entryMap[c]))
   )
   const [editing, setEditing] = useState<Record<string, RowState>>({})
   const [addSearch, setAddSearch] = useState('')
@@ -35,7 +42,7 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
   // When entries reload (e.g. after save), sync visible list to include all persisted entries
   useEffect(() => {
     setVisibleCategories(prev => {
-      const persisted = categories.filter(c => !!entryMap[c])
+      const persisted = categories.filter(c => isSaved(entryMap[c]))
       const merged = [...new Set([...persisted, ...prev])]
       return merged.filter(c => categories.includes(c))
     })
@@ -113,6 +120,9 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
     )
   }
 
+  // Render order follows the shared category order (drag-to-reorder updates that order directly)
+  const orderedVisible = categories.filter(c => visibleCategories.includes(c))
+
   const grandProjected = visibleCategories.reduce((sum, cat) => {
     const row = getRow(cat)
     return sum + (parseFloat(row.amount_per_month) || 0) * (parseInt(row.qty) || 0)
@@ -145,7 +155,7 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
             </tr>
           </thead>
           <tbody>
-            {visibleCategories.map((cat, i) => {
+            {orderedVisible.map((cat, i) => {
               const row = getRow(cat)
               const projected = (parseFloat(row.amount_per_month) || 0) * (parseInt(row.qty) || 0)
               const actual = actualsMap[cat] || 0
@@ -153,8 +163,36 @@ export default function BudgetCategoryTable({ categories, entries, actuals, onSa
               const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-green-500'
 
               return (
-                <tr key={cat} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-4 py-2 font-medium">{cat}</td>
+                <tr
+                  key={cat}
+                  draggable
+                  onDragStart={e => { setDragCat(cat); e.dataTransfer.effectAllowed = 'move' }}
+                  onDragEnd={() => { setDragCat(null); setDragOverCat(null) }}
+                  onDragOver={e => { e.preventDefault(); if (dragCat && dragCat !== cat) setDragOverCat(cat) }}
+                  onDragLeave={() => setDragOverCat(prev => (prev === cat ? null : prev))}
+                  onDrop={e => {
+                    e.preventDefault()
+                    if (dragCat && dragCat !== cat) onReorder(dragCat, cat)
+                    setDragCat(null)
+                    setDragOverCat(null)
+                  }}
+                  className={[
+                    i % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                    dragCat === cat ? 'opacity-40' : '',
+                    dragOverCat === cat ? 'border-t-2 border-blue-400' : '',
+                  ].filter(Boolean).join(' ')}
+                >
+                  <td className="px-4 py-2 font-medium">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none"
+                        title="Drag to reorder"
+                      >
+                        ⠿
+                      </span>
+                      {cat}
+                    </span>
+                  </td>
                   <td className="px-4 py-1 text-right">
                     <input
                       type="number"

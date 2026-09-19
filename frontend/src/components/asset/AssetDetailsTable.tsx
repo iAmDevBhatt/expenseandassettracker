@@ -110,16 +110,16 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
         <table className="min-w-full min-w-max text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-2 py-2 text-left font-medium sticky left-0 bg-gray-100 min-w-[130px]">
+              <th className="px-2 py-2 text-left font-medium sticky left-0 z-20 bg-gray-100 min-w-[130px]">
                 {l('asset.details.col.category', 'Category')}
               </th>
-              <th className="px-2 py-2 text-left font-medium min-w-[130px]">
+              <th className="px-2 py-2 text-left font-medium sticky left-[130px] z-20 bg-gray-100 min-w-[130px]">
                 {l('asset.details.col.subcat', 'Sub-Category')}
               </th>
-              <th className="px-2 py-2 text-left font-medium min-w-[110px]">
+              <th className="px-2 py-2 text-left font-medium sticky left-[260px] z-20 bg-gray-100 min-w-[110px]">
                 {l('asset.details.col.holder', 'Holder')}
               </th>
-              <th className="px-2 py-2 text-left font-medium min-w-[110px]">
+              <th className="px-2 py-2 text-left font-medium sticky left-[370px] z-20 bg-gray-100 min-w-[110px] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]">
                 {l('asset.details.col.account', 'Account #')}
               </th>
               <th className="px-2 py-2 text-left font-medium min-w-[130px]">
@@ -133,13 +133,13 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
               <th className="px-2 py-2 text-right font-semibold min-w-[90px]">
                 {l('asset.details.col.total', 'Total')}
               </th>
-              <th className="px-2 py-2"></th>
+              <th className="px-2 py-2 sticky right-0 z-20 bg-gray-100 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.2)]"></th>
             </tr>
           </thead>
           <tbody>
             {assets.length === 0 && (
               <tr>
-                <td colSpan={18} className="px-4 py-4 text-center text-gray-400">
+                <td colSpan={19} className="px-4 py-4 text-center text-gray-400">
                   {l('asset.details.empty', 'No assets yet. Click "+ Add Asset" to get started.')}
                 </td>
               </tr>
@@ -147,7 +147,7 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
             {assets.map((asset, i) => (
               <tr key={asset.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 {/* Category */}
-                <td className="px-1 py-1 sticky left-0 bg-inherit">
+                <td className="px-1 py-1 sticky left-0 z-10 bg-inherit">
                   <select
                     className="w-full border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-xs"
                     value={getVal(asset, 'asset_category')}
@@ -159,7 +159,7 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
                   </select>
                 </td>
                 {/* Sub-category */}
-                <td className="px-1 py-1">
+                <td className="px-1 py-1 sticky left-[130px] z-10 bg-inherit">
                   <select
                     className="w-full border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-xs"
                     value={getVal(asset, 'asset_sub_category')}
@@ -171,7 +171,7 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
                   </select>
                 </td>
                 {/* Holder */}
-                <td className="px-1 py-1">
+                <td className="px-1 py-1 sticky left-[260px] z-10 bg-inherit">
                   <select
                     className="w-full border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-xs"
                     value={getVal(asset, 'asset_holder')}
@@ -183,7 +183,7 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
                   </select>
                 </td>
                 {/* Account number */}
-                <td className="px-1 py-1">
+                <td className="px-1 py-1 sticky left-[370px] z-10 bg-inherit shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]">
                   <input
                     type="text"
                     className="w-full border border-transparent rounded px-1 py-0.5 bg-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-xs"
@@ -226,13 +226,13 @@ export default function AssetDetailsTable({ assets, fy, fyStartYear }: Props) {
                 {/* Row total for this FY */}
                 <td className="px-2 py-1 text-right font-semibold">{fmt(rowTotal(asset))}</td>
                 {/* Delete */}
-                <td className="px-1 py-1 text-center">
+                <td className="px-2 py-1 text-center sticky right-0 z-10 bg-inherit shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
                   <button
-                    className="text-red-400 hover:text-red-600"
                     onClick={() => { if (confirm('Delete this asset and all its monthly values?')) deleteMut.mutate(asset.id) }}
-                    title="Delete"
+                    className="text-gray-300 hover:text-red-500 transition-colors text-base leading-none"
+                    title="Delete asset"
                   >
-                    ✕
+                    ×
                   </button>
                 </td>
               </tr>

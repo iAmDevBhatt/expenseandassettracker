@@ -694,14 +694,14 @@ On screens narrower than `xl` (1280px) these stack vertically.
 
 ---
 
-## 17. Budget Category Table — Add / Delete Rows
+## 17. Budget Category Table — Add / Delete / Reorder Rows
 
-`BudgetCategoryTable.tsx` manages a `visibleCategories` local state (initially the categories that already have a saved `BudgetEntry`). The full `categories` prop (from `configs.EXPENSE_CATEGORY`) is still passed but used only as the universe of available options.
+`BudgetCategoryTable.tsx` manages a `visibleCategories` local state (initially the categories that already have a saved, non-zero `BudgetEntry` — see "Sync on reload" below). The full `categories` prop (from `configs.EXPENSE_CATEGORY`, sorted by `sort_order`) is passed down and doubles as the universe of available options and the shared row order. `BudgetPage.tsx` remounts the table with `key={fyStartYear}` so no local state (visible list, in-progress edits, add-search) leaks across an FY switch.
 
 ### Delete a row
 Each table row has an `×` button (rightmost column). Clicking it:
 1. Builds `allEntries` from the remaining visible categories (preserving any in-progress edits).
-2. Appends a zero entry `{ category, amount_per_month: 0, qty: 0 }` for the deleted category so the backend records the zero (the bulk-upsert endpoint always overwrites).
+2. Appends a zero entry `{ category, amount_per_month: 0, qty: 0 }` for the deleted category so the backend records the zero (there is no per-row delete endpoint — the bulk-upsert endpoint always overwrites).
 3. Calls `onSave(allEntries)` immediately.
 4. Removes the category from `visibleCategories` and clears its `editing` state.
 
@@ -709,4 +709,20 @@ Each table row has an `×` button (rightmost column). Clicking it:
 Below the table, an `+ Add category` button opens a searchable input. The dropdown lists only `hiddenCategories` (categories in the `categories` prop that are not currently in `visibleCategories`). Selecting one appends it to `visibleCategories` with default values `0 / 0` — the user then edits and tabs away to save.
 
 ### Sync on reload
-A `useEffect` on `entries` re-merges persisted categories into `visibleCategories` after each successful save, so a page refresh always shows all categories that have non-zero backend entries.
+A `useEffect` on `entries` re-merges persisted categories into `visibleCategories` after each successful save. "Persisted" means a `BudgetEntry` exists **and** has a non-zero `amount_per_month` or `qty` (`isSaved` helper) — a zeroed row (the trace a delete leaves behind, since delete never removes the DB row) is treated as not-persisted so it does not reappear when entries reload or the user switches FY and back.
+
+### Reorder rows (drag and drop)
+Each row is `draggable`; a `⠿` grip in the Category cell is the visual handle (the whole row is the drag target). Dropping a dragged category onto another calls `onReorder(draggedCategory, targetCategory)`, implemented in `BudgetPage.tsx`:
+1. Takes the full `categories` order (not just the visible subset), removes the dragged value, and reinserts it immediately before the drop target.
+2. Diffs the new order against each `ConfigItem.sort_order` and calls `PUT /api/config/EXPENSE_CATEGORY/{id}` (`updateConfigItem`) only for items whose position changed.
+3. Invalidates and refetches `useConfigStore` so every consumer of `EXPENSE_CATEGORY` (this table, the Add Expense category combobox, `/config`) picks up the new order.
+
+Row order is therefore **not** per-FY — it is the same global `sort_order` used everywhere else `EXPENSE_CATEGORY` is read. The table renders visible rows via `orderedVisible = categories.filter(c => visibleCategories.includes(c))` so drag-reordering the full category list is immediately reflected in row position.
+
+---
+
+## 18. Asset Details Table — Frozen Columns & Delete
+
+`AssetDetailsTable.tsx` renders Category, Sub-Category, Holder, and Account# as `sticky left-[...]` columns (offsets `0`, `130px`, `260px`, `370px` matching each column's `min-w`), so they stay in view while scrolling horizontally through the 12 month columns. Each row's sticky cells use `bg-inherit` to pick up that row's zebra-stripe color, with a `z-10` (body) / `z-20` (header) stack and a small drop-shadow on the last frozen column (Account#) as a visual divider.
+
+The delete button (rightmost column, `×`) is likewise `sticky right-0`, so it stays reachable without scrolling to the end of the month columns — it deletes the asset and all its monthly values (`DELETE /api/assets/{id}`) after a confirm prompt.

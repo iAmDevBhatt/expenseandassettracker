@@ -11,6 +11,7 @@ import {
 } from '../api/budgetApi'
 import { getCurrentFY, getFYForYear } from '../utils/financialYear'
 import { useConfigStore } from '../store/configStore'
+import { updateConfigItem } from '../api/configApi'
 import { useLabels } from '../hooks/useLabels'
 import BudgetCategoryTable from '../components/budget/BudgetCategoryTable'
 import BudgetSummaryTable from '../components/budget/BudgetSummaryTable'
@@ -25,7 +26,7 @@ export default function BudgetPage() {
   const { fyYear } = useParams<{ fyYear?: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { configs, fetchConfigs } = useConfigStore()
+  const { configs, fetchConfigs, invalidate } = useConfigStore()
 
   useEffect(() => { if (!configs) fetchConfigs() }, [configs, fetchConfigs])
 
@@ -49,9 +50,34 @@ export default function BudgetPage() {
 
   const goToFY = (year: number) => navigate(`/budget/${year}`)
 
-  const categories = (configs?.EXPENSE_CATEGORY ?? [])
+  const categoryItems = (configs?.EXPENSE_CATEGORY ?? [])
     .filter(c => c.is_active)
-    .map(c => c.value)
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+
+  const categories = categoryItems.map(c => c.value)
+
+  // Reordering is stored on the EXPENSE_CATEGORY config's sort_order — shared globally
+  // across every FY, same as the dropdown ordering elsewhere in the app.
+  const reorderCategories = async (draggedValue: string, targetValue: string) => {
+    if (draggedValue === targetValue) return
+    const order = categories.slice()
+    const from = order.indexOf(draggedValue)
+    if (from === -1 || order.indexOf(targetValue) === -1) return
+    order.splice(from, 1)
+    order.splice(order.indexOf(targetValue), 0, draggedValue)
+
+    const byValue = new Map(categoryItems.map(c => [c.value, c]))
+    const updates = order
+      .map((value, idx) => ({ item: byValue.get(value)!, sortOrder: idx }))
+      .filter(({ item, sortOrder }) => item.sort_order !== sortOrder)
+
+    await Promise.all(updates.map(({ item, sortOrder }) =>
+      updateConfigItem('EXPENSE_CATEGORY', item.id, item.value, sortOrder)
+    ))
+    invalidate()
+    await fetchConfigs()
+  }
 
   const entriesQ = useQuery({
     queryKey: ['budget-entries', fyStartYear],
@@ -213,10 +239,12 @@ export default function BudgetPage() {
         <p className="text-sm text-red-500 mb-4">{l('common.error')}</p>
       ) : (
         <BudgetCategoryTable
+          key={fyStartYear}
           categories={categories}
           entries={entriesQ.data ?? []}
           actuals={actualsQ.data?.actuals ?? []}
           onSave={entries => saveEntriesMut.mutate(entries)}
+          onReorder={reorderCategories}
           saving={saveEntriesMut.isPending}
         />
       )}
