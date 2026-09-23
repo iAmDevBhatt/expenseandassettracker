@@ -5,6 +5,7 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 font-sans;
+    -webkit-tap-highlight-color: transparent;
   }
 
   input[type='number']::-webkit-inner-spin-button,
@@ -27,8 +28,9 @@
     @apply bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition-colors text-sm;
   }
 
+  /* text-base (16px) below sm stops iOS Safari from zooming in when an input is focused */
   .input-field {
-    @apply block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply block w-full rounded-md border border-gray-300 px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
 
   .table-cell {
@@ -37,5 +39,24 @@
 
   .card {
     @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+  }
+}
+
+@layer utilities {
+  /* Respect the iPhone home-indicator / notch when running as an installed PWA */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Sticky footer inside a Modal body: cancels the body's bottom padding so it sits flush with the sheet edge */
+  .sheet-footer {
+    bottom: calc(-1 * max(1rem, env(safe-area-inset-bottom)));
+    margin-bottom: calc(-1 * max(1rem, env(safe-area-inset-bottom)));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .bottom-safe {
+    bottom: max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem));
   }
 }

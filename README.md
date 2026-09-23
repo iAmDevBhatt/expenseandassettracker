@@ -22,7 +22,7 @@ Login: `admin` / `admin123`
 
 ## Features
 
-- **Expenses** — record monthly expenses by category; credit card tracking; navigate any month across 60+ years via ‹/› arrows or jump pickers; months are only created in the DB when explicitly started; expense table and operating cash flow sit side by side on wide screens; category field in the Add Expense form is a searchable combobox
+- **Expenses** — record monthly expenses by category; credit card tracking; navigate any month across 60+ years via ‹/› arrows or jump pickers; months are only created in the DB when explicitly started; expense table and operating cash flow sit side by side on wide screens; mobile-first Add/Edit Expense sheet: big amount field with numeric keypad, one-tap chips for your most-used categories (plus search for the rest), Today/Yesterday date chips, payment-method chips, and **Save & add another** for entering several expenses in a row; on phones the list groups expenses by day with daily totals, tap a row to edit/delete, and a floating **+** button adds new ones
 - **Cash Flow** — 24-row operating cash flow table per month (22 editable + 2 computed)
 - **Financial Summary** — income vs. spending vs. investment vs. open balance
 - **Assets** — multi-year FY grid (Apr–Mar) with monthly values per asset; navigate between financial years via URL (`/assets/2025`, `/assets/2026`, …); Category/Sub-Category/Holder/Account# columns stay frozen while scrolling through the month columns; delete an asset row via the sticky `×` button
@@ -35,7 +35,24 @@ Login: `admin` / `admin123`
 - **Graphs** — interactive analytics at `/graphs`; stacked bar (monthly spend by category), donut (category breakdown), line chart (income vs spending vs investment), grouped bar (projected vs actual by category), area chart (asset value growth)
 - **User Management** — add/edit/delete users at `/users`
 - **Configuration** — runtime-editable dropdown lists + settings at `/config`; a compact index of categories, each opening a Save/Cancel editor modal
+- **Mobile & PWA** — fully usable on phones (≥ 360px), tablets and desktops; installable to the home screen (see below)
 - **Labels** — all UI text in `frontend/public/labels.properties` (edit and reload to change)
+
+## Install on Your Phone (PWA)
+
+The tracker is a Progressive Web App, so you can install it on your home screen and it opens full-screen like a native app, with no app store involved.
+
+**Android (Chrome / Edge / Samsung Internet)**
+1. Open the tracker URL and sign in.
+2. Tap **Install** on the blue "Install Tracker on your phone" banner (or ☰ menu → **Install app**). If neither shows, use the browser menu **⋮ → Install app / Add to Home screen**.
+
+**iPhone / iPad (Safari only; Chrome on iOS cannot install PWAs)**
+1. Open the tracker URL in **Safari** and sign in.
+2. Tap the **Share** button → **Add to Home Screen** → **Add**.
+
+**After installing:** long-press the icon (Android) for the **Add expense** shortcut, which opens straight into the add-expense sheet. Updates install automatically: when a new version is deployed, it loads on the next launch after that.
+
+> **HTTPS is required for a real install.** Browsers only register the service worker and offer "Install" on `https://` origins (or `localhost`). Over plain `http://192.168.x.x` you only get a bookmark-style home-screen shortcut, with no offline cache and no standalone window. Put the container behind an HTTPS reverse proxy, e.g. **Caddy** / **Nginx Proxy Manager** / **Traefik** with a real domain + Let's Encrypt, **Tailscale Serve** (`tailscale serve --bg 8000` gives you `https://<machine>.<tailnet>.ts.net`), or a **Cloudflare Tunnel**. A self-signed certificate only works if you also install its CA on every phone.
 
 ## Project Structure
 

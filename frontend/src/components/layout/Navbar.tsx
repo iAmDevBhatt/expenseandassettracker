@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useLabels } from '../../hooks/useLabels'
+import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 
 export function Navbar() {
   const { username, logout } = useAuthStore()
   const { pathname } = useLocation()
   const { l } = useLabels()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { canInstall, promptInstall } = useInstallPrompt()
 
   const isActive = (to: string) => pathname.startsWith(to)
 
@@ -36,7 +38,7 @@ export function Navbar() {
     }`
 
   return (
-    <nav className="bg-primary-800 shadow-md">
+    <nav className="bg-primary-800 shadow-md pt-safe">
       {/* Main bar */}
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
         {/* Logo + app name */}
@@ -71,7 +73,7 @@ export function Navbar() {
 
         {/* Mobile: hamburger button */}
         <button
-          className="lg:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 ml-4"
+          className="lg:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 ml-4"
           onClick={() => setMenuOpen(prev => !prev)}
           aria-label="Toggle menu"
         >
@@ -94,6 +96,14 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
+          {canInstall && (
+            <button
+              onClick={() => { setMenuOpen(false); promptInstall() }}
+              className="block w-full text-left px-4 py-3 text-sm font-medium text-white bg-primary-700 border-b border-primary-700"
+            >
+              ⬇ {l('install.menu', 'Install app')}
+            </button>
+          )}
           <div className="flex items-center justify-between px-4 py-3 text-sm text-primary-100">
             <span>{username}</span>
             <button

@@ -603,7 +603,7 @@ db.query(Expense.category, func.sum(Expense.amount))
 
 ## 13. Docker / SERVE_STATIC
 
-In Docker mode, FastAPI also serves the compiled React SPA. This is activated by the `SERVE_STATIC=true` environment variable. When set, `backend/main.py` (at the very bottom, after all routers are registered) mounts `frontend/dist/assets/` at `/assets` and `frontend/dist/icons/` at `/icons` as static directories, serves `/labels.properties` and `/favicon.ico` (→ `icons/icon-192.png`) explicitly, and adds a catch-all GET route that returns `index.html` for all other non-API paths.
+In Docker mode, FastAPI also serves the compiled React SPA. This is activated by the `SERVE_STATIC=true` environment variable. When set, `backend/main.py` (at the very bottom, after all routers are registered) mounts `frontend/dist/assets/` at `/assets` and `frontend/dist/icons/` at `/icons` as static directories, serves `/labels.properties` and `/favicon.ico` (→ `icons/icon-192.png`) explicitly, and adds a catch-all GET route that serves any real file at the root of `dist/` (the PWA's `sw.js`, `registerSW.js`, `manifest.webmanifest`, `workbox-*.js`; resolved with `realpath` so `..` cannot escape `dist/`) and returns `index.html` for every other non-API path. `sw.js`, `registerSW.js`, `manifest.webmanifest` and `index.html` carry `Cache-Control: no-cache` so a redeploy is picked up. Before this, the catch-all answered `/sw.js` with HTML and the PWA could not install in Docker.
 
 ```
 SERVE_STATIC=true   → FastAPI serves frontend/dist/ (Docker production)
@@ -643,8 +643,19 @@ The frontend is fully responsive using Tailwind CSS breakpoints. No backend chan
 ### Tables
 All data tables use `overflow-x-auto` so they scroll horizontally on narrow screens without breaking the page layout. Wide tables (AssetSummaryTable, AssetDetailsTable) additionally carry `min-w-max` on the inner `<table>` to prevent column compression.
 
-### ExpenseTable — card layout on mobile
-Below `sm` (< 640px), the expense rows render as stacked cards instead of a table. Each card shows date, amount, description, CC info, category badge, and edit/delete buttons. The standard table reappears at `sm:`.
+### ExpenseTable — phone list
+Below `sm` (< 640px) expenses render as a list grouped by day (newest first) with a per-day total header. Each row shows description (or category), category badge, card used, and amount; **tapping a row opens the Edit sheet** (which has Delete). A floating round **+** button (`fixed`, `bottom-safe`) opens the Add sheet; the header "+ Add Expense" button is hidden on phones. The card header shows the entry count and month total at every width. The standard table reappears at `sm:`.
+
+### Modals → bottom sheets
+`Modal.tsx` is a bottom sheet on phones (`items-end`, `rounded-t-2xl`, grab handle, `max-h-[92dvh]`, slide-up animation) and a centered dialog at `sm:`. It closes on Escape or backdrop click and locks body scroll while open. This applies to every modal in the app.
+
+### Touch & iOS details
+- `.input-field` is `text-base` (16px) below `sm`, which stops iOS Safari from zooming in on focus.
+- `index.html` uses `viewport-fit=cover`; `index.css` provides `pt-safe`, `pb-safe`, `bottom-safe` and `sheet-footer` utilities for notch/home-indicator insets in the installed (standalone) app.
+- ExpensePage month switcher is full-width on phones with 40px ‹ / › buttons; "Jump to:" text hides and the selects stretch.
+
+### PWA install
+`hooks/useInstallPrompt.ts` captures `beforeinstallprompt` at module load. `components/layout/InstallBanner.tsx` (rendered by `AppShell`) shows an **Install** button on Chromium or Share → Add to Home Screen instructions on iOS Safari; dismissal is stored in `localStorage` (`install-banner-dismissed`, wrapped in try/catch). The ☰ menu also gets an **Install app** item when available. The manifest has an **Add expense** shortcut → `/expenses?add=1`, which `ExpenseTable` turns into an open Add sheet and then strips from the URL. Installing requires HTTPS (or localhost).
 
 ### Page padding
 All full-width pages (`AssetPage`, `LoanPage`, `BudgetPage`, `GraphPage`) use `p-3 sm:p-6` so phones get tighter margins.
@@ -679,18 +690,19 @@ On screens narrower than `xl` (1280px) these stack vertically.
 
 ---
 
-## 16. Searchable Category Dropdown (AddExpenseModal)
+## 16. Expense Form (Add / Edit) — `ExpenseForm.tsx`
 
-`AddExpenseModal.tsx` replaces the native `<select>` for the category field with a custom combobox:
+`AddExpenseModal` and `EditExpenseModal` are thin wrappers around the shared `components/expense/ExpenseForm.tsx`. Field order is tuned for fast entry on a phone:
 
-- A text `<input>` lets the user type to filter `configs.EXPENSE_CATEGORY` items.
-- A floating dropdown (absolute-positioned, `z-50`, max-height scrollable) shows matching options.
-- Clicking an option sets `form.category` and closes the dropdown.
-- When a category is selected and the search box is empty, the selected value is shown via an absolutely-positioned `<span>` overlay (pointer-events-none) so it reads like a normal field.
-- A `mousedown` listener on `document` closes the dropdown when the user clicks outside (`categoryRef`).
-- The `valid` check still requires `form.category` to be non-empty before the form can submit.
+1. **Amount**: large `type="number"` + `inputMode="decimal"` (numeric keypad), autofocused in add mode. Pressing Enter/Next with no category yet closes the keyboard instead of submitting.
+2. **Category**: one-tap chips for up to 6 "quick categories" (computed in `ExpenseTable`: most-used this month, then topped up in `EXPENSE_CATEGORY` sort order), plus a searchable combobox for everything else (type to filter, Enter picks the first match, tap an option; `pointerdown` outside closes it). A category picked through search also gets a highlighted chip.
+3. **Date**: **Today** / **Yesterday** chips (shown only if that date falls in the viewed month) plus the native date picker. The default for a new expense is today if viewing the current month, else the 1st of the viewed month (`defaultExpenseDate`).
+4. **Payment**: chips for "Cash / UPI / Debit" (sends `paid_via_cc: null`) and each `CREDIT_CARD` entry. An expense's existing card stays visible even if it was since removed from config.
+5. **Description**: optional.
 
-**EditExpenseModal** uses the same `<select>` pattern and has not been changed — apply the same combobox treatment there if needed.
+The footer (`sticky sheet-footer`) stays visible while the form scrolls. Add mode has **Save & add another**: after success the parent bumps `resetKey`, which clears amount/description/category, keeps date + payment method, refocuses amount, and shows a green "Added ₹X · Category" confirmation. Edit mode shows **Delete** (same confirm as the table). The `valid` check requires date, amount > 0 and category. `amount_cc` is still never sent; the backend computes it.
+
+Labels: field labels come from the existing `addexpense.*` / `editexpense.*` keys (selected via `labelPrefix`); new strings live under `expenseform.*`, `expensetable.summary.*`, `expensetable.hint.tapedit` and `install.*` in `labels.properties`.
 
 ---
 

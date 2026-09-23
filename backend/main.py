@@ -71,6 +71,23 @@ if os.getenv("SERVE_STATIC", "false").lower() == "true":
         # favicon.ico was replaced by the PNG icons; redirect old requests there
         return _FileResponse(os.path.join(_static_dir, "icons", "icon-192.png"), media_type="image/png")
 
+    _static_root = os.path.realpath(_static_dir)
+    # PWA files emitted at the dist root by vite-plugin-pwa. The service worker and its
+    # registration script must never be cached, or clients get stuck on an old build.
+    _no_cache_files = {"sw.js", "registerSW.js", "manifest.webmanifest"}
+    _media_types = {".webmanifest": "application/manifest+json", ".js": "application/javascript"}
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str):
-        return _FileResponse(os.path.join(_static_dir, "index.html"))
+        # Serve real top-level build files (sw.js, manifest.webmanifest, workbox-*.js, …);
+        # everything else is a client-side route and gets index.html.
+        candidate = os.path.realpath(os.path.join(_static_root, full_path))
+        if full_path and candidate.startswith(_static_root + os.sep) and os.path.isfile(candidate):
+            name = os.path.basename(candidate)
+            headers = {"Cache-Control": "no-cache"} if name in _no_cache_files else None
+            return _FileResponse(
+                candidate,
+                media_type=_media_types.get(os.path.splitext(name)[1]),
+                headers=headers,
+            )
+        return _FileResponse(os.path.join(_static_dir, "index.html"), headers={"Cache-Control": "no-cache"})

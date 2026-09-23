@@ -15,7 +15,18 @@ export default defineConfig({
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
+        id: '/',
         start_url: '/',
+        scope: '/',
+        // Long-press the home-screen icon → jump straight into adding an expense
+        shortcuts: [
+          {
+            name: 'Add expense',
+            short_name: 'Add',
+            url: '/expenses?add=1',
+            icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -23,6 +34,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Don't let the SPA fallback swallow backend pages (Swagger, health, API)
+        navigateFallbackDenylist: [/^\/api\//, /^\/docs/, /^\/redoc/, /^\/openapi\.json/, /^\/health/],
         runtimeCaching: [
           {
             urlPattern: /^https?.*\/api\/.*/,

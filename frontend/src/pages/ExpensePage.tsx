@@ -80,38 +80,40 @@ export function ExpensePage() {
   const monthExists = monthYear != null
 
   return (
-    <div className="space-y-6">
-      {/* Navigation header */}
-      <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Navigation header — full-width month switcher on phones, inline on larger screens */}
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
 
         {/* Prev / label / Next */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 w-full sm:w-auto">
           <button
             onClick={goPrev}
-            className="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-lg leading-none"
+            className="h-10 w-10 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-xl sm:text-lg leading-none"
             title="Previous month"
+            aria-label="Previous month"
           >
             ‹
           </button>
-          <span className={`px-3 py-1 rounded font-semibold text-base min-w-[160px] text-center ${
+          <span className={`flex-1 sm:flex-none px-3 py-2 sm:py-1 rounded font-semibold text-base sm:min-w-[160px] text-center ${
             monthExists ? 'bg-primary-700 text-white' : 'bg-gray-200 text-gray-600'
           }`}>
             {MONTH_NAMES[currentMonth]} {currentYear}
           </span>
           <button
             onClick={goNext}
-            className="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-lg leading-none"
+            className="h-10 w-10 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-xl sm:text-lg leading-none"
             title="Next month"
+            aria-label="Next month"
           >
             ›
           </button>
         </div>
 
         {/* Jump to — month + year selects */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">{l('expensepage.nav.jumpto', 'Jump to:')}</span>
+        <div className="flex items-center gap-2 flex-1 sm:flex-none">
+          <span className="text-sm text-gray-500 hidden sm:inline">{l('expensepage.nav.jumpto', 'Jump to:')}</span>
           <select
-            className="input-field w-32"
+            className="input-field flex-1 sm:flex-none sm:w-32"
             value={currentMonth}
             onChange={e => navigate(`/expenses/${currentYear}/${e.target.value}`)}
           >
@@ -168,8 +170,8 @@ export function ExpensePage() {
       {!monthLoading && monthExists && (
         <>
           {/* Expense table + Cash flow side by side */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {monthYear && <ExpenseTable monthYearId={monthYear.id} />}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+            {monthYear && <ExpenseTable monthYearId={monthYear.id} year={currentYear} month={currentMonth} />}
 
             {dashLoading ? (
               <LoadingSpinner label={l('expensepage.loading.dashboard')} />
@@ -180,7 +182,7 @@ export function ExpensePage() {
 
           {/* Category + Financial summary below */}
           {!dashLoading && dashboard && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <CategorySummaryTable rows={dashboard.category_summary} />
               <FinancialSummaryTable summary={dashboard.financial_summary} />
             </div>

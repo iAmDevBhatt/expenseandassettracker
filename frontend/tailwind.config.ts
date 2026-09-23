@@ -15,6 +15,15 @@ export default {
           900: '#1e3a8a',
         },
       },
+      keyframes: {
+        'sheet-up': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'sheet-up': 'sheet-up 0.2s ease-out',
+      },
     },
   },
   plugins: [],

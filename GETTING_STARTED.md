@@ -221,3 +221,9 @@ To run the backend without auto-reload in production:
 cd backend
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
+---
+
+## Using It on Your Phone
+
+The UI is mobile-friendly and the app can be installed to your home screen as a PWA. On Android, tap **Install** on the in-app banner; on iPhone, open it in Safari → **Share** → **Add to Home Screen**. A real install needs the app served over **HTTPS** (see "Install on Your Phone (PWA)" in `README.md` for reverse-proxy options).
