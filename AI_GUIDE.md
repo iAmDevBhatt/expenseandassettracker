@@ -513,7 +513,7 @@ To add a new feature:
 1. **New entity** → add a new SQLAlchemy model in `backend/models/`, create a schema in `backend/schemas/`, add a service in `backend/services/`, register a router in `backend/main.py`
 2. **New config list** → add `list_type` to `VALID_LIST_TYPES` in `backend/services/config_service.py` and seed defaults in `backend/seed.py`
 3. **New cash flow row** → add entry to `CASH_FLOW_ROWS` in `backend/core/cash_flow_rows.py`; it auto-appears in the OCF table
-4. **New frontend page** → add component in `frontend/src/pages/`, register route in `frontend/src/App.tsx`, add nav link in `frontend/src/components/layout/Navbar.tsx`
+4. **New frontend page** → add component in `frontend/src/pages/`, register route in `frontend/src/App.tsx`, add nav link in `frontend/src/components/layout/Navbar.tsx` (desktop) and, if it's a primary section, a tab in `frontend/src/components/layout/BottomNav.tsx` (mobile)
 
 ---
 
@@ -636,26 +636,26 @@ The frontend is fully responsive using Tailwind CSS breakpoints. No backend chan
 | `md:` | 768px+ | Tablet |
 | `lg:` | 1024px+ | Desktop |
 
-### Navbar (Navbar.tsx)
-- Desktop (`lg:`): all nav links visible inline.
-- Below `lg`: a hamburger button (three-bar → X animation) reveals a full-width dropdown menu. Links and user/logout are inside the dropdown; clicking a link closes the menu.
+### Navbar (Navbar.tsx) + BottomNav (BottomNav.tsx)
+- Desktop (`lg:`): `Navbar` shows all nav links inline plus username/sign-out; `BottomNav` renders nothing (`lg:hidden`).
+- Below `lg`: `Navbar` collapses to just the logo/app name. Navigation moves to `BottomNav`, a fixed icon tab bar (Expenses, Budget, Assets, Loans, Graphs) plus a **More** tab that opens a bottom-sheet `Modal` (Users, Configuration, Install app, username, Sign out).
 
 ### Tables
 All data tables use `overflow-x-auto` so they scroll horizontally on narrow screens without breaking the page layout. Wide tables (AssetSummaryTable, AssetDetailsTable) additionally carry `min-w-max` on the inner `<table>` to prevent column compression.
 
 ### ExpenseTable — phone list
-Below `sm` (< 640px) expenses render as a list grouped by day (newest first) with a per-day total header. Each row shows description (or category), category badge, card used, and amount; **tapping a row opens the Edit sheet** (which has Delete). A floating round **+** button (`fixed`, `bottom-safe`) opens the Add sheet; the header "+ Add Expense" button is hidden on phones. The card header shows the entry count and month total at every width. The standard table reappears at `sm:`.
+Below `sm` (< 640px) expenses render as a list grouped by day (newest first) with a per-day total header. Each row shows description (or category), category badge, card used, and amount; **tapping a row opens the Edit sheet** (which has Delete). A floating round **+** button (`fixed`, `bottom-safe-nav` — sits clear of `BottomNav`) opens the Add sheet; the header "+ Add Expense" button is hidden on phones. The card header shows the entry count and month total at every width. The standard table reappears at `sm:`.
 
 ### Modals → bottom sheets
 `Modal.tsx` is a bottom sheet on phones (`items-end`, `rounded-t-2xl`, grab handle, `max-h-[92dvh]`, slide-up animation) and a centered dialog at `sm:`. It closes on Escape or backdrop click and locks body scroll while open. This applies to every modal in the app.
 
 ### Touch & iOS details
 - `.input-field` is `text-base` (16px) below `sm`, which stops iOS Safari from zooming in on focus.
-- `index.html` uses `viewport-fit=cover`; `index.css` provides `pt-safe`, `pb-safe`, `bottom-safe` and `sheet-footer` utilities for notch/home-indicator insets in the installed (standalone) app.
+- `index.html` uses `viewport-fit=cover`; `index.css` provides `pt-safe`, `pb-safe`, `bottom-safe`, `bottom-safe-nav` (like `bottom-safe` but lifted clear of the fixed `BottomNav`) and `sheet-footer` utilities for notch/home-indicator insets in the installed (standalone) app.
 - ExpensePage month switcher is full-width on phones with 40px ‹ / › buttons; "Jump to:" text hides and the selects stretch.
 
 ### PWA install
-`hooks/useInstallPrompt.ts` captures `beforeinstallprompt` at module load. `components/layout/InstallBanner.tsx` (rendered by `AppShell`) shows an **Install** button on Chromium or Share → Add to Home Screen instructions on iOS Safari; dismissal is stored in `localStorage` (`install-banner-dismissed`, wrapped in try/catch). The ☰ menu also gets an **Install app** item when available. The manifest has an **Add expense** shortcut → `/expenses?add=1`, which `ExpenseTable` turns into an open Add sheet and then strips from the URL. Installing requires HTTPS (or localhost).
+`hooks/useInstallPrompt.ts` captures `beforeinstallprompt` at module load. `components/layout/InstallBanner.tsx` (rendered by `AppShell`) shows an **Install** button on Chromium or Share → Add to Home Screen instructions on iOS Safari; dismissal is stored in `localStorage` (`install-banner-dismissed`, wrapped in try/catch). `BottomNav`'s **More** sheet also gets an **Install app** item when available. The manifest has an **Add expense** shortcut → `/expenses?add=1`, which `ExpenseTable` turns into an open Add sheet and then strips from the URL. Installing requires HTTPS (or localhost).
 
 ### Page padding
 All full-width pages (`AssetPage`, `LoanPage`, `BudgetPage`, `GraphPage`) use `p-3 sm:p-6` so phones get tighter margins.

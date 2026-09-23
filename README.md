@@ -35,7 +35,7 @@ Login: `admin` / `admin123`
 - **Graphs** — interactive analytics at `/graphs`; stacked bar (monthly spend by category), donut (category breakdown), line chart (income vs spending vs investment), grouped bar (projected vs actual by category), area chart (asset value growth)
 - **User Management** — add/edit/delete users at `/users`
 - **Configuration** — runtime-editable dropdown lists + settings at `/config`; a compact index of categories, each opening a Save/Cancel editor modal
-- **Mobile & PWA** — fully usable on phones (≥ 360px), tablets and desktops; installable to the home screen (see below)
+- **Mobile & PWA** — fully usable on phones (≥ 360px), tablets and desktops; a fixed icon tab bar (Expenses, Budget, Assets, Loans, Graphs, More) drives navigation on phones/tablets; installable to the home screen (see below)
 - **Labels** — all UI text in `frontend/public/labels.properties` (edit and reload to change)
 
 ## Install on Your Phone (PWA)
@@ -44,7 +44,7 @@ The tracker is a Progressive Web App, so you can install it on your home screen 
 
 **Android (Chrome / Edge / Samsung Internet)**
 1. Open the tracker URL and sign in.
-2. Tap **Install** on the blue "Install Tracker on your phone" banner (or ☰ menu → **Install app**). If neither shows, use the browser menu **⋮ → Install app / Add to Home screen**.
+2. Tap **Install** on the blue "Install Tracker on your phone" banner (or **More** tab → **Install app**). If neither shows, use the browser menu **⋮ → Install app / Add to Home screen**.
 
 **iPhone / iPad (Safari only; Chrome on iOS cannot install PWAs)**
 1. Open the tracker URL in **Safari** and sign in.

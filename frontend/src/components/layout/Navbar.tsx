@@ -1,15 +1,11 @@
-import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useLabels } from '../../hooks/useLabels'
-import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 
 export function Navbar() {
   const { username, logout } = useAuthStore()
   const { pathname } = useLocation()
   const { l } = useLabels()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const { canInstall, promptInstall } = useInstallPrompt()
 
   const isActive = (to: string) => pathname.startsWith(to)
 
@@ -25,13 +21,6 @@ export function Navbar() {
 
   const desktopLinkCls = (to: string) =>
     `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-      isActive(to)
-        ? 'bg-primary-800 text-white'
-        : 'text-primary-100 hover:bg-primary-700 hover:text-white'
-    }`
-
-  const mobileLinkCls = (to: string) =>
-    `block px-4 py-3 text-sm font-medium transition-colors border-b border-primary-700 last:border-0 ${
       isActive(to)
         ? 'bg-primary-800 text-white'
         : 'text-primary-100 hover:bg-primary-700 hover:text-white'
@@ -70,51 +59,7 @@ export function Navbar() {
             {l('nav.signout')}
           </button>
         </div>
-
-        {/* Mobile: hamburger button */}
-        <button
-          className="lg:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 ml-4"
-          onClick={() => setMenuOpen(prev => !prev)}
-          aria-label="Toggle menu"
-        >
-          <span className={`block w-6 h-0.5 bg-white transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-          <span className={`block w-6 h-0.5 bg-white transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
-          <span className={`block w-6 h-0.5 bg-white transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
-        </button>
       </div>
-
-      {/* Mobile dropdown menu */}
-      {menuOpen && (
-        <div className="lg:hidden bg-primary-900 border-t border-primary-700">
-          {navLinks.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={mobileLinkCls(link.to)}
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
-          {canInstall && (
-            <button
-              onClick={() => { setMenuOpen(false); promptInstall() }}
-              className="block w-full text-left px-4 py-3 text-sm font-medium text-white bg-primary-700 border-b border-primary-700"
-            >
-              ⬇ {l('install.menu', 'Install app')}
-            </button>
-          )}
-          <div className="flex items-center justify-between px-4 py-3 text-sm text-primary-100">
-            <span>{username}</span>
-            <button
-              onClick={() => { setMenuOpen(false); logout() }}
-              className="text-primary-200 hover:text-white transition-colors"
-            >
-              {l('nav.signout')}
-            </button>
-          </div>
-        </div>
-      )}
     </nav>
   )
 }

@@ -194,7 +194,7 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
       <button
         onClick={() => setShowAdd(true)}
         aria-label={l('expensetable.button.add')}
-        className="sm:hidden fixed right-5 bottom-safe z-40 h-14 w-14 rounded-full bg-primary-700 text-white text-3xl leading-none shadow-lg active:bg-primary-800 flex items-center justify-center"
+        className="sm:hidden fixed right-5 bottom-safe-nav z-40 h-14 w-14 rounded-full bg-primary-700 text-white text-3xl leading-none shadow-lg active:bg-primary-800 flex items-center justify-center"
       >
         +
       </button>
