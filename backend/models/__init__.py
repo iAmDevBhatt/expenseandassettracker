@@ -5,6 +5,7 @@ from models.cash_flow_entry import CashFlowEntry
 from models.config_item import ConfigItem
 from models.asset import Asset
 from models.asset_monthly_value import AssetMonthlyValue
+from models.asset_blueprint import AssetBlueprint
 from models.protection_target import ProtectionTarget
 from models.liquid_asset import LiquidAsset
 from models.precious_metal import PreciousMetal
@@ -20,7 +21,7 @@ from models.loan import (
 
 __all__ = [
     "User", "MonthYear", "Expense", "CashFlowEntry", "ConfigItem",
-    "Asset", "AssetMonthlyValue", "ProtectionTarget", "LiquidAsset", "PreciousMetal",
+    "Asset", "AssetMonthlyValue", "AssetBlueprint", "ProtectionTarget", "LiquidAsset", "PreciousMetal",
     "BudgetEntry", "BudgetSummary",
     "LoanSettings", "LoanAccountColumn", "LoanEntry", "LoanEntryAmount", "LoanGiven",
 ]

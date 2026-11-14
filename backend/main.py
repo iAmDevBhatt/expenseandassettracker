@@ -5,7 +5,7 @@ from core.config import settings
 from database import engine, Base
 import models  # ensure all models are registered with Base
 
-from routers import auth, months, expenses, cash_flow, config_items, dashboard, assets, users, budget, loans
+from routers import auth, months, expenses, cash_flow, config_items, dashboard, assets, asset_blueprints, users, budget, loans
 
 Base.metadata.create_all(bind=engine)
 
@@ -34,6 +34,7 @@ app.include_router(cash_flow.router)
 app.include_router(dashboard.router)
 app.include_router(config_items.router)
 app.include_router(assets.router)
+app.include_router(asset_blueprints.router)
 app.include_router(budget.router)
 app.include_router(loans.router)
 app.include_router(months.router)  # last: its /{year}/{month} wildcard must not shadow the above

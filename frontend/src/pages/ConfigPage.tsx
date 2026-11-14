@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useConfigStore } from '../store/configStore'
 import { ConfigListModal } from '../components/config/ConfigListModal'
 import { LoanSettingsModal } from '../components/config/LoanSettingsModal'
+import { AssetBlueprintsModal } from '../components/config/AssetBlueprintsModal'
 import { LoadingSpinner } from '../components/common/LoadingSpinner'
 import { getLoanSettings } from '../api/loanApi'
+import { listAssetBlueprints } from '../api/assetBlueprintApi'
 import { useLabels } from '../hooks/useLabels'
 
 const LIST_CONFIG = [
@@ -20,6 +22,7 @@ const LIST_CONFIG = [
 ]
 
 const LOAN_SETTINGS = '__loan_settings__'
+const ASSET_BLUEPRINTS = '__asset_blueprints__'
 
 export function ConfigPage() {
   const { configs, loading, fetchConfigs } = useConfigStore()
@@ -31,6 +34,7 @@ export function ConfigPage() {
   }, [fetchConfigs])
 
   const loanSettingsQ = useQuery({ queryKey: ['loan-settings'], queryFn: getLoanSettings })
+  const blueprintsQ = useQuery({ queryKey: ['asset-blueprints'], queryFn: listAssetBlueprints })
 
   if (loading || !configs) return <LoadingSpinner label={l('configpage.loading')} />
 
@@ -79,6 +83,14 @@ export function ConfigPage() {
           detail={pct != null ? `${pct}%` : l('configpage.loan.notset', 'Not set')}
           onClick={() => setOpen(LOAN_SETTINGS)}
         />
+        <Row
+          label={l('configpage.list.assetblueprints', 'Asset Blueprints')}
+          detail={l('configpage.row.items', '{n} items').replace(
+            '{n}',
+            String(blueprintsQ.data?.length ?? 0),
+          )}
+          onClick={() => setOpen(ASSET_BLUEPRINTS)}
+        />
       </div>
 
       {openList && (
@@ -91,6 +103,10 @@ export function ConfigPage() {
       )}
 
       {open === LOAN_SETTINGS && <LoanSettingsModal onClose={() => setOpen(null)} />}
+
+      {open === ASSET_BLUEPRINTS && (
+        <AssetBlueprintsModal blueprints={blueprintsQ.data ?? []} onClose={() => setOpen(null)} />
+      )}
     </div>
   )
 }

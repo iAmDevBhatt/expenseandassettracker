@@ -119,6 +119,18 @@ export interface AssetWithMonthly extends Asset {
   monthly_values: AssetMonthlyValue[]
 }
 
+export interface AssetBlueprint {
+  id: number
+  name: string
+  asset_category: string | null
+  asset_sub_category: string | null
+  asset_holder: string | null
+  account_number: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export interface ProtectionTarget {
   id: number
   category: string
