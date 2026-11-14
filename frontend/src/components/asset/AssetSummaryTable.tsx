@@ -52,7 +52,36 @@ export default function AssetSummaryTable({ assets, fyStartYear }: Props) {
   return (
     <div className="mb-6">
       <h3 className="text-base font-semibold text-gray-700 mb-2">{l('asset.summary.title', 'Asset Summary')}</h3>
-      <div className="overflow-x-auto rounded border border-gray-200">
+
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-2">
+        {rows.map(row => {
+          const nonZeroMonths = MONTH_KEYS.filter(m => row[m] > 0)
+          return (
+            <div key={row.subCat} className="border border-gray-200 rounded-lg p-3 bg-white">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-700">{row.subCat}</span>
+                <span className="text-sm font-semibold">{fmt(row.total)}</span>
+              </div>
+              {nonZeroMonths.length > 0 ? (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                  {nonZeroMonths.map(m => (
+                    <span key={m}>{MONTH_LABELS[m]}: <span className="text-gray-700">{fmt(row[m])}</span></span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">{l('asset.summary.nodata', 'No amounts recorded yet.')}</p>
+              )}
+            </div>
+          )
+        })}
+        <div className="border border-gray-300 rounded-lg p-3 bg-gray-100 flex justify-between items-center font-semibold">
+          <span className="text-sm text-gray-700">{l('asset.summary.footer.grand', 'Grand Total')}</span>
+          <span className="text-sm">{fmt(grandTotals.total)}</span>
+        </div>
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200">
         <table className="min-w-full min-w-max text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>

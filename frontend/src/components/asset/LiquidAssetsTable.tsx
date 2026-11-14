@@ -42,7 +42,35 @@ export default function LiquidAssetsTable({ data }: Props) {
       <h3 className="text-base font-semibold text-gray-700 mb-2">
         {l('asset.liquid.title', 'Liquid Assets')}
       </h3>
-      <div className="overflow-x-auto rounded border border-gray-200">
+
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-3">
+        {(['current', 'target'] as const).map(group => (
+          <div key={group} className="border border-gray-200 rounded-lg p-3 bg-white">
+            <p className="text-xs font-semibold text-gray-500 mb-2">
+              {group === 'current' ? l('asset.liquid.group.current', 'Current') : l('asset.liquid.group.target', 'Target')}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {FIELDS.filter(f => f.group === group).map(f => (
+                <label key={f.field} className="block">
+                  <span className="text-[11px] text-gray-400">{f.label}</span>
+                  <input
+                    type="number"
+                    className="input-field text-sm text-right"
+                    value={f.field in editing ? editing[f.field]! : (data[f.field] ?? '')}
+                    placeholder="—"
+                    onChange={e => setEditing(prev => ({ ...prev, [f.field]: e.target.value }))}
+                    onFocus={() => setEditing(prev => ({ ...prev, [f.field]: String(data[f.field] ?? '') }))}
+                    onBlur={() => handleBlur(f.field)}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100">
             <tr>

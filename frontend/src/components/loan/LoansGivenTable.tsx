@@ -65,7 +65,7 @@ export default function LoansGivenTable({ given }: Props) {
 
   return (
     <div className="mb-8">
-      <div className="flex items-center justify-between mb-2 max-w-5xl">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2 max-w-5xl">
         <div>
           <h3 className="text-base font-semibold text-gray-700">
             {l('loan.given.title', 'Loans Given to Others (Bad Debt Watch)')}
@@ -75,14 +75,97 @@ export default function LoansGivenTable({ given }: Props) {
           </p>
         </div>
         <button
-          className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
+          className="text-sm px-3 py-1.5 sm:py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
           onClick={() => addMut.mutate()}
         >
           + {l('loan.given.add', 'Add Entry')}
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded border border-gray-200 max-w-5xl">
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-3 max-w-5xl">
+        {given.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-300 rounded">
+            {l('loan.given.empty', 'Nothing recorded. Click "+ Add Entry" when you lend money out.')}
+          </p>
+        )}
+        {given.map(row => (
+          <div key={row.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <input
+                type="text" className="input-field text-sm flex-1" placeholder={l('loan.given.col.person', 'Person Name')}
+                value={getVal(row, 'person_name')}
+                onChange={e => setVal(row.id, 'person_name', e.target.value)}
+                onFocus={() => setVal(row.id, 'person_name', String(row.person_name ?? ''))}
+                onBlur={() => commit(row, 'person_name', 'text')}
+              />
+              <button
+                className="text-gray-300 hover:text-red-500 text-xl leading-none px-1"
+                title="Delete"
+                onClick={() => { if (confirm('Delete this entry?')) deleteMut.mutate(row.id) }}
+              >
+                ×
+              </button>
+            </div>
+            <input
+              type="text" className="input-field text-sm mb-2 w-full" placeholder={l('loan.given.col.method', 'Payment Method')}
+              value={getVal(row, 'payment_method')}
+              onChange={e => setVal(row.id, 'payment_method', e.target.value)}
+              onFocus={() => setVal(row.id, 'payment_method', String(row.payment_method ?? ''))}
+              onBlur={() => commit(row, 'payment_method', 'text')}
+            />
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <label className="block">
+                <span className="text-[11px] text-gray-400">{l('loan.given.col.givendate', 'Given Date')}</span>
+                <input type="date" className="input-field text-sm"
+                  value={getVal(row, 'given_date')}
+                  onChange={e => setVal(row.id, 'given_date', e.target.value)}
+                  onBlur={() => commit(row, 'given_date', 'date')} />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-gray-400">{l('loan.given.col.amount', 'Loan Amount')}</span>
+                <input type="number" className="input-field text-sm text-right" placeholder="—"
+                  value={getVal(row, 'loan_amount')}
+                  onChange={e => setVal(row.id, 'loan_amount', e.target.value)}
+                  onFocus={() => setVal(row.id, 'loan_amount', String(row.loan_amount ?? ''))}
+                  onBlur={() => commit(row, 'loan_amount', 'num')} />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[11px] text-gray-400">{l('loan.given.col.cleareddate', 'Cleared Date')}</span>
+                <input type="date" className="input-field text-sm"
+                  value={getVal(row, 'cleared_date')}
+                  onChange={e => setVal(row.id, 'cleared_date', e.target.value)}
+                  onBlur={() => commit(row, 'cleared_date', 'date')} />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-gray-400">{l('loan.given.col.paid', 'Loan Paid Amount')}</span>
+                <input type="number" className="input-field text-sm text-right" placeholder="—"
+                  value={getVal(row, 'paid_amount')}
+                  onChange={e => setVal(row.id, 'paid_amount', e.target.value)}
+                  onFocus={() => setVal(row.id, 'paid_amount', String(row.paid_amount ?? ''))}
+                  onBlur={() => commit(row, 'paid_amount', 'num')} />
+              </label>
+            </div>
+            <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100 text-sm">
+              <span className="text-gray-400">{l('loan.given.col.outstanding', 'Outstanding')}</span>
+              <span className={`font-medium ${outstanding(row) > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                {inr(outstanding(row))}
+              </span>
+            </div>
+          </div>
+        ))}
+        {given.length > 0 && (
+          <div className="border border-gray-300 rounded-lg p-3 bg-gray-100 text-sm font-semibold space-y-1">
+            <div className="flex justify-between"><span>{l('loan.given.footer.total', 'Total')} ({l('loan.given.col.amount', 'Loan Amount')})</span><span>{inr(totalGiven)}</span></div>
+            <div className="flex justify-between"><span>{l('loan.given.col.paid', 'Loan Paid Amount')}</span><span>{inr(totalPaid)}</span></div>
+            <div className="flex justify-between"><span>{l('loan.given.col.outstanding', 'Outstanding')}</span><span>{inr(totalOutstanding)}</span></div>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200 max-w-5xl">
         <table className="min-w-full text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>

@@ -65,7 +65,35 @@ export default function LoanSummary({ data, columns, interestPct }: Props) {
           {l('loan.summary.nopct', 'Set "Personal Loan Interest %" on the Configuration page to see monthly interest.')}
         </p>
       )}
-      <div className="overflow-x-auto rounded border border-gray-200 max-w-3xl">
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-2 max-w-3xl">
+        {rows.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-300 rounded">
+            {l('loan.summary.byaccount.empty', 'No loan accounts yet. Add a column in the ledger below.')}
+          </p>
+        )}
+        {rows.map(r => (
+          <div key={r.name} className="border border-gray-200 rounded-lg p-3 bg-white">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">{r.name}</span>
+              <span className={`text-sm font-semibold ${r.current > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                {inr(r.current)}
+              </span>
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {l('loan.summary.col.interest', 'Interest (Current Month)')}: {r.interest != null ? inr(r.interest) : '—'}
+            </div>
+          </div>
+        ))}
+        {rows.length > 0 && (
+          <div className="border border-gray-300 rounded-lg p-3 bg-gray-100 flex justify-between items-center font-semibold">
+            <span className="text-sm text-gray-700">{l('loan.summary.footer.total', 'Total')}</span>
+            <span className="text-sm">{inr(totalRemaining)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200 max-w-3xl">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100">
             <tr>

@@ -108,12 +108,12 @@ export default function PreciousMetalsTable({ metals }: Props) {
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
         <h3 className="text-base font-semibold text-gray-700">
           {l('asset.metals.title', 'Precious Metals')}
         </h3>
         <button
-          className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="text-sm px-3 py-1.5 sm:py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
           onClick={() => createMut.mutate({})}
         >
           + {l('asset.metals.add', 'Add Row')}
@@ -132,7 +132,108 @@ export default function PreciousMetalsTable({ metals }: Props) {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded border border-gray-200">
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-3">
+        {metals.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-300 rounded">
+            {l('asset.metals.empty', 'No precious metals added yet.')}
+          </p>
+        )}
+        {metals.map(m => {
+          const computedVal = computedCurrentValue(m)
+          const isOverride = m.current_value_override != null
+          return (
+            <div key={m.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+              <div className="flex justify-between items-start gap-2 mb-2">
+                <div className="grid grid-cols-2 gap-2 flex-1 min-w-0">
+                  <select
+                    className="input-field text-sm"
+                    value={getVal(m, 'metal_type')}
+                    onChange={e => handleChange(m.id, 'metal_type', e.target.value)}
+                    onBlur={() => handleBlur(m, 'metal_type')}
+                  >
+                    <option value="">— {l('asset.metals.col.type', 'Metal Type')}</option>
+                    {METAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select
+                    className="input-field text-sm"
+                    value={getVal(m, 'carat')}
+                    onChange={e => handleChange(m.id, 'carat', e.target.value)}
+                    onBlur={() => handleBlur(m, 'carat')}
+                  >
+                    <option value="">— {l('asset.metals.col.carat', 'Carat')}</option>
+                    {CARAT_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <button
+                  className="text-gray-300 hover:text-red-500 text-xl leading-none px-1"
+                  onClick={() => { if (confirm('Delete this row?')) deleteMut.mutate(m.id) }}
+                  title="Delete"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">{l('asset.metals.col.grams', 'Grams')}</span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    className="input-field text-sm text-right"
+                    value={getVal(m, 'grams')}
+                    placeholder="—"
+                    onChange={e => handleChange(m.id, 'grams', e.target.value)}
+                    onFocus={() => setEditing(prev => ({ ...prev, [eKey(m.id, 'grams')]: String(m.grams ?? '') }))}
+                    onBlur={() => handleBlur(m, 'grams')}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">{l('asset.metals.col.purchase', 'Purchase Price (₹)')}</span>
+                  <input
+                    type="number"
+                    className="input-field text-sm text-right"
+                    value={getVal(m, 'purchase_price')}
+                    placeholder="—"
+                    onChange={e => handleChange(m.id, 'purchase_price', e.target.value)}
+                    onFocus={() => setEditing(prev => ({ ...prev, [eKey(m.id, 'purchase_price')]: String(m.purchase_price ?? '') }))}
+                    onBlur={() => handleBlur(m, 'purchase_price')}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">{l('asset.metals.col.spent', 'Amount Spent (₹)')}</span>
+                  <input
+                    type="number"
+                    className="input-field text-sm text-right"
+                    value={getVal(m, 'amount_spent')}
+                    placeholder="—"
+                    onChange={e => handleChange(m.id, 'amount_spent', e.target.value)}
+                    onFocus={() => setEditing(prev => ({ ...prev, [eKey(m.id, 'amount_spent')]: String(m.amount_spent ?? '') }))}
+                    onBlur={() => handleBlur(m, 'amount_spent')}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] text-gray-400">{l('asset.metals.col.current', 'Current Value (₹)')}</span>
+                  <input
+                    type="number"
+                    className={`input-field text-sm text-right ${isOverride ? 'border-amber-400 bg-amber-50' : ''}`}
+                    value={getVal(m, 'current_value_override')}
+                    placeholder={computedVal != null ? fmt(computedVal) : '—'}
+                    onChange={e => handleChange(m.id, 'current_value_override', e.target.value)}
+                    onFocus={() => setEditing(prev => ({ ...prev, [eKey(m.id, 'current_value_override')]: String(m.current_value_override ?? '') }))}
+                    onBlur={() => handleBlur(m, 'current_value_override')}
+                    title={isOverride ? 'Manual override (live price ignored)' : 'Auto-calculated from live price × grams'}
+                  />
+                </label>
+              </div>
+              {m.metal_type && (
+                <p className="text-xs text-gray-400 mt-1">{priceLabel(m)}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100">
             <tr>

@@ -37,7 +37,41 @@ export default function ProtectionTargetsTable({ targets }: Props) {
       <h3 className="text-base font-semibold text-gray-700 mb-2">
         {l('asset.protection.title', 'Protection & Savings Targets')}
       </h3>
-      <div className="overflow-x-auto rounded border border-gray-200">
+
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-3">
+        {targets.map(t => (
+          <div key={t.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+            <p className="text-sm font-medium text-gray-700 mb-2">{t.category}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['current_value', 'target_value'] as Field[]).map(field => {
+                const k = key(t.id, field)
+                const isEditing = k in editing
+                return (
+                  <label key={field} className="block">
+                    <span className="text-[11px] text-gray-400">
+                      {field === 'current_value'
+                        ? l('asset.protection.col.current', 'Current')
+                        : l('asset.protection.col.target', 'Target')}
+                    </span>
+                    <input
+                      type="number"
+                      className="input-field text-sm text-right"
+                      value={isEditing ? editing[k] : (t[field] ?? '')}
+                      placeholder="—"
+                      onChange={e => setEditing(prev => ({ ...prev, [k]: e.target.value }))}
+                      onFocus={() => setEditing(prev => ({ ...prev, [k]: String(t[field] ?? '') }))}
+                      onBlur={() => handleBlur(t, field)}
+                    />
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100">
             <tr>

@@ -90,7 +90,7 @@ export default function LoanLedgerTables({ fyStartYear, data, columns, loanAccou
     showOpening: boolean,
   ) => (
     <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <h4 className="text-sm font-semibold text-gray-600">{title}</h4>
         <button
           className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
@@ -99,7 +99,96 @@ export default function LoanLedgerTables({ fyStartYear, data, columns, loanAccou
           + {l('loan.ledger.addrow', 'Add Row')}
         </button>
       </div>
-      <div className="overflow-x-auto rounded border border-gray-200">
+      {/* Phone cards — table below is sm: and up */}
+      <div className="sm:hidden space-y-2">
+        {columns.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-300 rounded">
+            {l('loan.ledger.nocols', 'Add a loan-account column to start.')}
+          </p>
+        )}
+
+        {showOpening && columns.length > 0 && (
+          <div className="border border-blue-100 bg-blue-50 rounded-lg p-3">
+            <p className="text-xs font-medium text-gray-600 mb-1">{l('loan.ledger.opening', 'Opening (carried forward)')}</p>
+            <div className="flex gap-3 overflow-x-auto pb-0.5">
+              {columns.map(col => (
+                <div key={col.id} className="flex-shrink-0 text-xs">
+                  <div className="text-gray-400">{col.name}</div>
+                  <div className="font-medium text-gray-700">{inr(opening(col.name))}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {entries.map(entry => (
+          <div key={entry.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+            <div className="flex justify-between items-center gap-2 mb-2">
+              <input
+                type="date"
+                className="input-field text-sm flex-1"
+                value={ck(entry.id, 'date') in editing ? editing[ck(entry.id, 'date')] : (entry.entry_date ?? '')}
+                onChange={e => setVal(entry.id, 'date', e.target.value)}
+                onBlur={() => commitDate(entry)}
+              />
+              <button
+                className="text-gray-300 hover:text-red-500 text-xl leading-none px-1"
+                title="Delete row"
+                onClick={() => { if (confirm('Delete this row?')) delRowMut.mutate(entry.id) }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {columns.map(col => (
+                <div key={col.id} className="flex-shrink-0 w-20">
+                  <div className="text-[10px] text-gray-400 truncate text-center mb-0.5">{col.name}</div>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                      {(ck(entry.id, col.name) in editing ? editing[ck(entry.id, col.name)] : (entry.amounts[col.name] ?? '')) !== '' ? '₹' : ''}
+                    </span>
+                    <input
+                      type="number"
+                      className="w-full text-right border border-gray-300 rounded px-1 pl-4 py-1 text-sm"
+                      placeholder="—"
+                      value={
+                        ck(entry.id, col.name) in editing
+                          ? editing[ck(entry.id, col.name)]
+                          : (entry.amounts[col.name] ?? '')
+                      }
+                      onChange={e => setVal(entry.id, col.name, e.target.value)}
+                      onFocus={() => setVal(entry.id, col.name, String(entry.amounts[col.name] ?? ''))}
+                      onBlur={() => commitAmount(entry, col.name)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {entries.length === 0 && columns.length > 0 && (
+          <p className="text-sm text-gray-400 text-center py-3 border border-dashed border-gray-300 rounded">
+            {l('loan.ledger.norows', 'No entries yet. Click "+ Add Row".')}
+          </p>
+        )}
+
+        {columns.length > 0 && (
+          <div className="border border-gray-300 rounded-lg p-3 bg-gray-100">
+            <p className="text-xs font-semibold text-gray-600 mb-1">{l('loan.ledger.fytotal', 'FY Total')}</p>
+            <div className="flex gap-3 overflow-x-auto pb-0.5">
+              {columns.map(col => (
+                <div key={col.id} className="flex-shrink-0 text-xs">
+                  <div className="text-gray-400">{col.name}</div>
+                  <div className="font-semibold text-gray-700">{inr(sideSum(entries, col.name))}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto rounded border border-gray-200">
         <table className="min-w-full text-xs text-gray-700">
           <thead className="bg-gray-100">
             <tr>
@@ -249,6 +338,27 @@ export default function LoanLedgerTables({ fyStartYear, data, columns, loanAccou
           </span>
         )}
       </div>
+
+      {/* Column removal isn't reachable from the phone cards below (no per-column header there) */}
+      {columns.length > 0 && (
+        <div className="sm:hidden flex flex-wrap gap-2 mb-4">
+          {columns.map(col => (
+            <span key={col.id} className="inline-flex items-center gap-1 text-xs bg-gray-100 rounded-full pl-3 pr-2 py-1">
+              {col.name}
+              <button
+                className="text-red-300 hover:text-red-600 text-sm leading-none"
+                title={l('loan.ledger.delcol', 'Remove this column from both tables')}
+                onClick={() => {
+                  if (confirm(`Remove column "${col.name}" from both tables? All its amounts will be deleted.`))
+                    delColMut.mutate(col.id)
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6">
         {renderTable(l('loan.ledger.withdrawn', 'Withdrawn'), 'WITHDRAWN', data.withdrawn, true)}
