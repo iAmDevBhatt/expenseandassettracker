@@ -141,7 +141,7 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
           <div className="sm:hidden -mx-4 pb-16">
             {dayGroups.map(([day, items]) => (
               <div key={day}>
-                <div className="flex justify-between px-4 py-1.5 bg-gray-50 border-y border-gray-100 text-xs font-medium text-gray-500">
+                <div className="flex justify-between px-4 py-1.5 bg-primary-50 border-y border-primary-100 text-xs font-medium text-primary-700">
                   <span>{formatDay(day)}</span>
                   <CurrencyCell amount={items.reduce((s, e) => s + Number(e.amount), 0)} />
                 </div>
@@ -187,9 +187,9 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
               <tbody>
                 {dayGroups.map(([day, items]) => (
                   <Fragment key={day}>
-                    <tr className="bg-gray-50 border-y border-gray-100">
+                    <tr className="bg-primary-50 border-y border-primary-100">
                       <td colSpan={6} className="table-cell py-1.5">
-                        <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                        <div className="flex items-center justify-between text-xs font-medium text-primary-700">
                           <span>{formatDay(day)}</span>
                           <CurrencyCell amount={items.reduce((s, e) => s + Number(e.amount), 0)} />
                         </div>

@@ -169,14 +169,23 @@ export function ExpensePage() {
       {/* Month exists — show data */}
       {!monthLoading && monthExists && (
         <>
-          {/* Expense table + Cash flow side by side */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-            {monthYear && <ExpenseTable monthYearId={monthYear.id} year={currentYear} month={currentMonth} />}
+          {/* Expense table + Cash flow side by side — Expense table gets more width since
+              Operating Cash Flow only ever holds two columns (Category, Amount) */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-6">
+            {monthYear && (
+              <div className="xl:col-span-3">
+                <ExpenseTable monthYearId={monthYear.id} year={currentYear} month={currentMonth} />
+              </div>
+            )}
 
             {dashLoading ? (
-              <LoadingSpinner label={l('expensepage.loading.dashboard')} />
+              <div className="xl:col-span-2">
+                <LoadingSpinner label={l('expensepage.loading.dashboard')} />
+              </div>
             ) : dashboard ? (
-              <OperatingCashFlowTable monthYearId={monthYear!.id} rows={dashboard.cash_flow} />
+              <div className="xl:col-span-2">
+                <OperatingCashFlowTable monthYearId={monthYear!.id} rows={dashboard.cash_flow} />
+              </div>
             ) : null}
           </div>
 
