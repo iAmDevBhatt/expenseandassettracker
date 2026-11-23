@@ -11,11 +11,12 @@ interface Props {
   year: number
   month: number
   quickCategories: string[]
+  existingExpenses: Expense[]
   onClose: () => void
   onDelete?: () => void
 }
 
-export function EditExpenseModal({ expense, monthYearId, year, month, quickCategories, onClose, onDelete }: Props) {
+export function EditExpenseModal({ expense, monthYearId, year, month, quickCategories, existingExpenses, onClose, onDelete }: Props) {
   const queryClient = useQueryClient()
   const { l } = useLabels()
 
@@ -47,6 +48,8 @@ export function EditExpenseModal({ expense, monthYearId, year, month, quickCateg
         onSubmit={(payload) => mutation.mutate(payload)}
         onCancel={onClose}
         onDelete={onDelete}
+        allExpenses={existingExpenses}
+        excludeId={expense.id}
       />
     </Modal>
   )

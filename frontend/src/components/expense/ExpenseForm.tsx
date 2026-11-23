@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useConfigStore } from '../../store/configStore'
 import { useLabels } from '../../hooks/useLabels'
-import type { ExpenseCreate } from '../../types'
+import { CurrencyCell } from '../common/CurrencyCell'
+import type { Expense, ExpenseCreate } from '../../types'
 
 export interface ExpenseFormValues {
   expense_date: string
@@ -33,6 +34,10 @@ interface Props {
   resetKey?: number
   /** Short confirmation shown after a successful "add another" */
   flash?: string | null
+  /** This month's expenses — shown filtered to the picked date so duplicates are easy to spot */
+  allExpenses?: Expense[]
+  /** When editing, excludes the expense itself from the same-day tally */
+  excludeId?: number
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -55,6 +60,7 @@ const chipCls = (active: boolean) =>
 export function ExpenseForm({
   labelPrefix, initial, year, month, quickCategories, pending, errorMessage,
   onSubmit, onCancel, allowAddAnother, onDelete, resetKey, flash,
+  allExpenses, excludeId,
 }: Props) {
   const { configs } = useConfigStore()
   const { l } = useLabels()
@@ -113,6 +119,17 @@ export function ExpenseForm({
 
   const amountNum = parseFloat(form.amount)
   const valid = !!form.expense_date && amountNum > 0 && !!form.category
+
+  // Entries already logged for the picked date — lets the user tally against what's already there
+  // before saving, so old/backfilled entries don't get added twice.
+  const sameDayExpenses = useMemo(
+    () => (allExpenses ?? []).filter(e => e.expense_date === form.expense_date && e.id !== excludeId),
+    [allExpenses, form.expense_date, excludeId],
+  )
+  const sameDayTotal = useMemo(
+    () => sameDayExpenses.reduce((s, e) => s + Number(e.amount), 0),
+    [sameDayExpenses],
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -248,6 +265,36 @@ export function ExpenseForm({
           />
         </div>
       </div>
+
+      {/* Already logged for this date — tally against it to avoid duplicate entries */}
+      {allExpenses && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <p className="text-xs font-medium text-gray-500 mb-1 flex items-center justify-between">
+            <span>{l('expenseform.sameday.heading', 'Already logged for this date')}</span>
+            {sameDayExpenses.length > 0 && (
+              <span className="text-gray-400">
+                {sameDayExpenses.length} · <CurrencyCell amount={sameDayTotal} />
+              </span>
+            )}
+          </p>
+          {sameDayExpenses.length === 0 ? (
+            <p className="text-xs text-gray-400">{l('expenseform.sameday.empty', 'Nothing logged yet for this date')}</p>
+          ) : (
+            <ul className="space-y-1 max-h-32 overflow-y-auto">
+              {sameDayExpenses.map(e => (
+                <li key={e.id} className="flex items-center justify-between gap-2 text-xs text-gray-700">
+                  <span className="truncate">
+                    {e.category}
+                    {e.description ? ` · ${e.description}` : ''}
+                    {e.paid_via_cc ? ` · 💳 ${e.paid_via_cc}` : ''}
+                  </span>
+                  <CurrencyCell amount={e.amount} className="shrink-0 font-medium" />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Payment method — chips instead of a dropdown */}
       <div>

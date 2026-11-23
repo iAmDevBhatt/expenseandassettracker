@@ -4,17 +4,18 @@ import { Modal } from '../common/Modal'
 import { createExpense } from '../../api/expenseApi'
 import { useLabels } from '../../hooks/useLabels'
 import { ExpenseForm, defaultExpenseDate } from './ExpenseForm'
-import type { ExpenseCreate } from '../../types'
+import type { Expense, ExpenseCreate } from '../../types'
 
 interface Props {
   monthYearId: number
   year: number
   month: number
   quickCategories: string[]
+  existingExpenses: Expense[]
   onClose: () => void
 }
 
-export function AddExpenseModal({ monthYearId, year, month, quickCategories, onClose }: Props) {
+export function AddExpenseModal({ monthYearId, year, month, quickCategories, existingExpenses, onClose }: Props) {
   const queryClient = useQueryClient()
   const { l } = useLabels()
   const [resetKey, setResetKey] = useState(0)
@@ -61,6 +62,7 @@ export function AddExpenseModal({ monthYearId, year, month, quickCategories, onC
         allowAddAnother
         resetKey={resetKey}
         flash={flash}
+        allExpenses={existingExpenses}
       />
     </Modal>
   )

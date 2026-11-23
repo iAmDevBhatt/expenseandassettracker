@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { Fragment, useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { listExpenses, deleteExpense } from '../../api/expenseApi'
@@ -25,6 +25,7 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showAdd, setShowAdd] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [filterDate, setFilterDate] = useState('')
 
   // `?add=1` (used by the installed app's "Add expense" shortcut) opens the add sheet directly
   useEffect(() => {
@@ -56,9 +57,15 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
     return false
   }
 
-  const total = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount), 0), [expenses])
+  // Date filter — restricts both views to a single day so a specific date's entries can be checked
+  const filteredExpenses = useMemo(
+    () => (filterDate ? expenses.filter(e => e.expense_date === filterDate) : expenses),
+    [expenses, filterDate],
+  )
 
-  // Most-used categories this month first, topped up from the configured order
+  const total = useMemo(() => filteredExpenses.reduce((s, e) => s + Number(e.amount), 0), [filteredExpenses])
+
+  // Most-used categories this month first, topped up from the configured order (unaffected by the date filter)
   const quickCategories = useMemo(() => {
     const counts = new Map<string, number>()
     for (const e of expenses) counts.set(e.category, (counts.get(e.category) ?? 0) + 1)
@@ -68,16 +75,16 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
     return merged.slice(0, QUICK_CATEGORY_COUNT)
   }, [expenses, configs])
 
-  // Phone view: newest day first, grouped by date with a per-day total
+  // Grouped by date with a per-day total — used by both the phone list and the desktop/tablet table
   const dayGroups = useMemo(() => {
     const groups = new Map<string, Expense[]>()
-    for (const e of [...expenses].sort((a, b) => b.expense_date.localeCompare(a.expense_date) || b.id - a.id)) {
+    for (const e of [...filteredExpenses].sort((a, b) => b.expense_date.localeCompare(a.expense_date) || b.id - a.id)) {
       const list = groups.get(e.expense_date) ?? []
       list.push(e)
       groups.set(e.expense_date, list)
     }
     return [...groups.entries()]
-  }, [expenses])
+  }, [filteredExpenses])
 
   const formatDay = (iso: string) => {
     const [y, m, d] = iso.split('-').map(Number)
@@ -86,23 +93,48 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{l('expensetable.heading')}</h2>
-          {expenses.length > 0 && (
+          {filteredExpenses.length > 0 && (
             <p className="text-xs text-gray-500">
-              {expenses.length} {l('expensetable.summary.count', 'entries')} · {l('expensetable.summary.total', 'Total')}{' '}
+              {filterDate && <span className="text-primary-700 font-medium">{formatDay(filterDate)} · </span>}
+              {filteredExpenses.length} {l('expensetable.summary.count', 'entries')} · {l('expensetable.summary.total', 'Total')}{' '}
               <CurrencyCell amount={total} className="font-semibold text-gray-700" />
             </p>
           )}
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary hidden sm:block">{l('expensetable.button.add')}</button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              aria-label={l('expensetable.filter.date', 'Filter by date')}
+              className="input-field text-sm py-1.5 w-auto"
+            />
+            {filterDate && (
+              <button
+                type="button"
+                onClick={() => setFilterDate('')}
+                aria-label={l('expensetable.filter.clear', 'Clear date filter')}
+                title={l('expensetable.filter.clear', 'Clear date filter')}
+                className="text-gray-400 hover:text-red-600 text-lg leading-none w-6 h-6 flex items-center justify-center"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+          <button onClick={() => setShowAdd(true)} className="btn-primary hidden sm:block">{l('expensetable.button.add')}</button>
+        </div>
       </div>
 
       {isLoading ? (
         <LoadingSpinner />
-      ) : expenses.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-8">{l('expensetable.empty')}</p>
+      ) : filteredExpenses.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-8">
+          {filterDate ? l('expensetable.filter.empty', 'No expenses on this date.') : l('expensetable.empty')}
+        </p>
       ) : (
         <>
           {/* Phone list (< sm): grouped by day, tap a row to edit */}
@@ -139,12 +171,11 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
             <p className="text-center text-xs text-gray-400 pt-3">{l('expensetable.hint.tapedit', 'Tap an expense to edit or delete it')}</p>
           </div>
 
-          {/* Desktop / tablet table (≥ sm) */}
+          {/* Desktop / tablet table (≥ sm) — grouped by date, same as the phone list */}
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-gray-600">
-                  <th className="table-cell font-medium">{l('expensetable.col.date')}</th>
                   <th className="table-cell font-medium">{l('expensetable.col.amount')}</th>
                   <th className="table-cell font-medium">{l('expensetable.col.description')}</th>
                   <th className="table-cell font-medium">{l('expensetable.col.amountcc')}</th>
@@ -154,35 +185,46 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((expense) => (
-                  <tr key={expense.id} className="border-b hover:bg-gray-50">
-                    <td className="table-cell">{expense.expense_date}</td>
-                    <td className="table-cell"><CurrencyCell amount={expense.amount} /></td>
-                    <td className="table-cell text-gray-700 max-w-xs truncate">{expense.description || '—'}</td>
-                    <td className="table-cell"><CurrencyCell amount={expense.amount_cc} /></td>
-                    <td className="table-cell text-gray-600">{expense.paid_via_cc || '—'}</td>
-                    <td className="table-cell">
-                      <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded">
-                        {expense.category}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingExpense(expense)}
-                          className="text-gray-400 hover:text-primary-600 text-xs"
-                        >
-                          {l('expensetable.action.edit')}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="text-gray-400 hover:text-red-600 text-xs"
-                        >
-                          {l('expensetable.action.delete')}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                {dayGroups.map(([day, items]) => (
+                  <Fragment key={day}>
+                    <tr className="bg-gray-50 border-y border-gray-100">
+                      <td colSpan={6} className="table-cell py-1.5">
+                        <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                          <span>{formatDay(day)}</span>
+                          <CurrencyCell amount={items.reduce((s, e) => s + Number(e.amount), 0)} />
+                        </div>
+                      </td>
+                    </tr>
+                    {items.map((expense) => (
+                      <tr key={expense.id} className="border-b hover:bg-gray-50">
+                        <td className="table-cell"><CurrencyCell amount={expense.amount} /></td>
+                        <td className="table-cell text-gray-700 max-w-xs truncate">{expense.description || '—'}</td>
+                        <td className="table-cell"><CurrencyCell amount={expense.amount_cc} /></td>
+                        <td className="table-cell text-gray-600">{expense.paid_via_cc || '—'}</td>
+                        <td className="table-cell">
+                          <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded">
+                            {expense.category}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditingExpense(expense)}
+                              className="text-gray-400 hover:text-primary-600 text-xs"
+                            >
+                              {l('expensetable.action.edit')}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(expense.id)}
+                              className="text-gray-400 hover:text-red-600 text-xs"
+                            >
+                              {l('expensetable.action.delete')}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -205,6 +247,7 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
           year={year}
           month={month}
           quickCategories={quickCategories}
+          existingExpenses={expenses}
           onClose={() => setShowAdd(false)}
         />
       )}
@@ -215,6 +258,7 @@ export function ExpenseTable({ monthYearId, year, month }: Props) {
           year={year}
           month={month}
           quickCategories={quickCategories}
+          existingExpenses={expenses}
           onClose={() => setEditingExpense(null)}
           onDelete={() => { if (handleDelete(editingExpense.id)) setEditingExpense(null) }}
         />
